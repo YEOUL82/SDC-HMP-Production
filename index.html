@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDC × HMP 생산 계획 시스템</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F7F6F3;--surface:#FFFFFF;--surface2:#F0EEE9;--border:#E2DED7;--border2:#D0CBC2;
+  --text:#1A1714;--text2:#6B6560;--text3:#9C968F;
+  --accent:#2B5C3F;--accent-light:#EAF3EE;
+  --accent2:#C4581A;--accent2-light:#FBF0E9;
+  --red:#C0392B;--red-light:#FDECEA;
+  --yellow:#F5A623;--yellow-light:#FFF8E8;
+  --radius:8px;--radius-lg:12px;
+  --shadow:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 4px 12px rgba(0,0,0,.1);
+}
+body{font-family:'Noto Sans KR',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5}
+.shell{max-width:1140px;margin:0 auto;padding:28px 20px}
+.page-hdr h1{font-size:23px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}
+.page-hdr h1 span{color:var(--accent)}
+.page-hdr p{font-size:13px;color:var(--text2);margin-bottom:22px}
+.tabs{display:flex;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;width:fit-content;margin-bottom:20px;box-shadow:var(--shadow)}
+.tab{padding:8px 18px;font-size:13px;font-weight:500;cursor:pointer;background:transparent;border:none;color:var(--text2);border-right:1px solid var(--border);transition:all .15s;font-family:inherit}
+.tab:last-child{border-right:none}
+.tab:hover{background:var(--surface2);color:var(--text)}
+.tab.active{background:var(--accent);color:#fff}
+.sec{display:none}.sec.active{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;margin-bottom:14px;box-shadow:var(--shadow)}
+.ct{font-size:14px;font-weight:600;color:var(--text);margin-bottom:14px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px}
+@media(max-width:580px){.row2,.row3{grid-template-columns:1fr}}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:12px;font-weight:500;color:var(--text2)}
+input,select,textarea{width:100%;padding:7px 11px;font-size:13px;border:1px solid var(--border2);border-radius:var(--radius);background:var(--surface);color:var(--text);outline:none;transition:border-color .15s;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+.btn{padding:7px 15px;font-size:13px;font-weight:500;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;background:var(--surface);color:var(--text);transition:all .15s;font-family:inherit}
+.btn:hover{background:var(--surface2)}
+.btn-p{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important}
+.btn-p:hover{opacity:.88!important}
+.btn-d{color:var(--red)!important;border-color:rgba(192,57,43,.3)!important}
+.btn-d:hover{background:var(--red-light)!important}
+.btn-sm{padding:3px 9px;font-size:12px}
+.orow{display:grid;grid-template-columns:1fr 80px 110px 36px;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.orow:last-child{border-bottom:none}
+.smg{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+@media(max-width:620px){.smg{grid-template-columns:1fr 1fr}}
+.smc{background:var(--surface2);border-radius:var(--radius);padding:12px}
+.smc .lbl{font-size:11px;font-weight:500;color:var(--text2);margin-bottom:3px;text-transform:uppercase;letter-spacing:.4px}
+.smc .val{font-size:20px;font-weight:700;color:var(--text)}
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;padding:7px 9px;border-bottom:2px solid var(--border);white-space:nowrap;background:var(--surface2)}
+.tbl td{padding:7px 9px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tbody tr:hover td{background:var(--surface2)}
+.bdg{font-size:11px;padding:2px 7px;border-radius:20px;font-weight:600;white-space:nowrap;display:inline-block}
+.b1{background:#E6F1FB;color:#1a5fa8}.b2{background:#E1F5EE;color:#0d6b4f}
+.b3{background:#FDF3E3;color:#8B5E00}.b4{background:#FCE8EC;color:#9b2335}
+.b5{background:#EBF5E1;color:#3a6b10}.b6{background:#EEEDFE;color:#4f3fbf}
+.b7{background:#F3E8FF;color:#6B21A8}.b8{background:#FFF0E0;color:#9A4700}
+.cat-U{background:#FFF8E1;color:#6D4C00}.cat-A{background:#E0F2F1;color:#00574B}
+.cat-S{background:#FCE4EC;color:#880E4F}.cat-H{background:#ECEFF1;color:#37474F}
+.cat-D{background:#E8F5E9;color:#1B5E20}.cat-P{background:#EDE7F6;color:#4527A0}
+.qc-hi{background:#E8F5E9;color:#1B5E20}.qc-mid{background:#FFF8E1;color:#6D4C00}
+.qc-lo{background:#FDECEA;color:#B71C1C}.qc-none{background:#F5F5F5;color:#757575}
+.alert{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin-bottom:10px;border-left:3px solid}
+.alert-warn{background:var(--accent2-light);color:#7C3A0F;border-color:var(--accent2)}
+.alert-info{background:var(--accent-light);color:#1C4731;border-color:var(--accent)}
+.alert-success{background:#E8F5E9;color:#1B5E20;border-color:#4CAF50}
+.divider{height:1px;background:var(--border);margin:14px 0}
+.frow{display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.chip{font-size:12px;padding:3px 11px;border-radius:20px;cursor:pointer;border:1px solid var(--border2);background:var(--surface);color:var(--text2);transition:all .15s;font-family:inherit}
+.chip:hover{background:var(--surface2)}
+.chip.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ptags{flex:1;display:flex;flex-wrap:wrap;gap:3px}
+.ptag{font-size:11px;padding:2px 6px;border-radius:20px;background:var(--surface2);color:var(--text2)}
+.ptag.hi{background:var(--accent-light);color:var(--accent);font-weight:500}
+.prow{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.prow:last-child{border-bottom:none}
+.bar-bg{flex:1;height:6px;background:var(--surface2);border-radius:4px;overflow:hidden;position:relative;min-width:50px}
+.bar-fill{height:100%;border-radius:4px;transition:width .4s}
+.bar-target{position:absolute;top:0;height:100%;width:1.5px;background:var(--red);opacity:.7}
+.elig-info{font-size:12px;color:var(--text2);min-height:18px;margin-bottom:10px;padding:4px 0}
+.empty{text-align:center;padding:28px;color:var(--text3);font-size:13px}
+.month-row{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.month-row label{font-size:13px;font-weight:500;color:var(--text2)}
+.footer{text-align:center;padding:20px 0;font-size:12px;color:var(--text3)}
+.drop-zone{border:2px dashed var(--border2);border-radius:var(--radius-lg);padding:28px;text-align:center;transition:all .2s;background:var(--surface2)}
+.drop-zone.over{border-color:var(--accent);background:var(--accent-light)}
+.upload-result-ok{background:#E8F5E9;color:#1B5E20;border:1px solid #A5D6A7;border-radius:var(--radius);padding:10px 14px;font-size:13px}
+.upload-result-err{background:var(--red-light);color:var(--red);border:1px solid #FFCDD2;border-radius:var(--radius);padding:10px 14px;font-size:13px}
+.save-ind{font-size:12px;color:var(--accent);margin-left:8px;opacity:0;transition:opacity .3s}
+.save-ind.show{opacity:1}
+.tag-wrap{display:flex;flex-wrap:wrap;gap:5px;padding:7px;border:1px solid var(--border2);border-radius:var(--radius);min-height:40px;cursor:text;background:var(--surface)}
+.tag-item{display:flex;align-items:center;gap:3px;background:var(--accent-light);color:var(--accent);font-size:12px;padding:2px 7px;border-radius:20px;font-weight:500}
+.tag-item button{background:none;border:none;cursor:pointer;color:var(--accent);font-size:14px;line-height:1;padding:0}
+.tag-wrap input{border:none;outline:none;flex:1;min-width:100px;padding:2px 4px;font-size:13px;background:transparent}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--radius-lg);padding:22px;width:100%;max-width:540px;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-md)}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:14px}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
+/* QC 전용 스타일 */
+.qc-bar-wrap{display:flex;align-items:center;gap:8px}
+.qc-bar-bg{flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+.qc-bar-fill{height:100%;border-radius:4px}
+.qc-rate-badge{font-size:12px;font-weight:700;min-width:42px;text-align:right}
+.qc-card{border-radius:var(--radius);padding:10px 12px;margin-bottom:6px;border:1px solid var(--border)}
+.toggle-section{cursor:pointer;user-select:none}
+.toggle-section .arrow{transition:transform .2s;display:inline-block}
+.toggle-section.open .arrow{transform:rotate(90deg)}
+/* QC 영향 배지 */
+.w-full{color:#1B5E20;background:#E8F5E9;font-size:11px;padding:1px 6px;border-radius:20px;font-weight:600}
+.w-high{color:#1565C0;background:#E3F2FD;font-size:11px;padding:1px 6px;border-radius:20px;font-weight:600}
+.w-mid{color:#E65100;background:#FFF3E0;font-size:11px;padding:1px 6px;border-radius:20px;font-weight:600}
+.w-low{color:#B71C1C;background:#FDECEA;font-size:11px;padding:1px 6px;border-radius:20px;font-weight:600}
+.w-none{color:#757575;background:#F5F5F5;font-size:11px;padding:1px 6px;border-radius:20px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="page-hdr">
+  <h1>SDC <span>×</span> HMP 생산 계획 시스템</h1>
+  <p>생산 역량 · QC 이력 기반 균등 노동비 배분 자동화</p>
+</div>
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+  <div class="tabs">
+    <button class="tab active" onclick="go('order')">📋 주문 입력</button>
+    <button class="tab" onclick="go('plan')">📊 생산 계획</button>
+    <button class="tab" onclick="go('qc')">✅ QC 이력</button>
+    <button class="tab" onclick="go('hmp')">👥 HMP 현황</button>
+    <button class="tab" onclick="go('manage')">⚙️ 데이터 관리</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:7px">
+    <span id="save-ind" class="save-ind">✓ 저장됨</span>
+    <button class="btn btn-sm" onclick="exportData()">💾 백업</button>
+    <button class="btn btn-sm btn-p" onclick="document.getElementById('upload-modal').classList.add('open')">📥 데이터 업데이트</button>
+  </div>
+</div>
+
+<!-- 주문 입력 -->
+<div id="s-order" class="sec active">
+  <div class="month-row">
+    <label>대상 월</label>
+    <select id="sel-month" style="width:auto" onchange="saveOrders()">
+      <option>2026년 6월</option><option>2026년 7월</option><option>2026년 8월</option>
+      <option>2026년 9월</option><option>2026년 10월</option><option>2026년 11월</option><option>2026년 12월</option>
+    </select>
+  </div>
+
+  <!-- QC 가중치 설정 -->
+  <div class="card" style="border-left:3px solid var(--accent)">
+    <div class="ct" style="margin-bottom:8px">⚙️ QC 기반 배분 설정</div>
+    <div class="row3">
+      <div class="fg">
+        <label>QC 반영 강도</label>
+        <select id="qc-weight-mode" onchange="saveSettings()">
+          <option value="none">반영 안 함 (균등 배분)</option>
+          <option value="soft" selected>약하게 반영 (±20%)</option>
+          <option value="medium">중간 반영 (±40%)</option>
+          <option value="strong">강하게 반영 (±60%)</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>QC 데이터 없는 HMP</label>
+        <select id="qc-unknown-mode" onchange="saveSettings()">
+          <option value="average" selected>평균으로 처리</option>
+          <option value="full">100%로 처리 (신규 우대)</option>
+          <option value="low">낮게 처리 (미참여 패널티)</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>QC 기준 월</label>
+        <select id="qc-ref-month" onchange="saveSettings()">
+          <option value="may" selected>2026년 5월</option>
+        </select>
+      </div>
+    </div>
+    <div id="qc-setting-desc" style="font-size:12px;color:var(--text2);margin-top:4px"></div>
+  </div>
+
+  <div class="card">
+    <div class="ct">주문 추가</div>
+    <div class="row2">
+      <div class="fg"><label>제품명</label>
+        <select id="inp-prod" onchange="onProdChange()"><option value="">-- 제품 선택 --</option></select>
+      </div>
+      <div class="fg"><label>수량 (pcs)</label><input type="number" id="inp-qty" min="1" placeholder="예: 200"></div>
+    </div>
+    <div class="row2">
+      <div class="fg"><label>단가 노동비 (UGX/pcs)</label><input type="number" id="inp-fee" placeholder="자동 입력"></div>
+      <div class="fg"><label>비고</label><input type="text" id="inp-note" placeholder="예: Use Offcut"></div>
+    </div>
+    <div class="elig-info" id="elig-info"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-p" onclick="addOrder()">추가</button>
+      <button class="btn" onclick="loadSample()">샘플 불러오기</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span class="ct" style="margin:0">주문 목록</span>
+      <span id="ocnt" style="font-size:12px;font-weight:500;padding:2px 10px;border-radius:20px;background:var(--surface2);color:var(--text2)">0개 품목</span>
+    </div>
+    <div id="olist"><div class="empty">주문을 추가하거나 샘플을 불러오세요</div></div>
+    <div class="divider"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span id="ototal" style="font-size:13px;color:var(--text2);font-weight:500"></span>
+      <button class="btn btn-p" onclick="generate()">▶ 생산 계획 생성</button>
+    </div>
+  </div>
+</div>
+
+<!-- 생산 계획 -->
+<div id="s-plan" class="sec">
+  <div id="plan-empty" class="alert alert-info">주문 탭에서 주문을 입력하고 "생산 계획 생성"을 눌러주세요.</div>
+  <div id="plan-body" style="display:none">
+    <div class="smg" id="smg"></div>
+    <div id="plan-warns"></div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <span class="ct" style="margin:0">생산자별 노동비 & QC 배분 현황</span>
+        <div class="frow" style="margin:0;gap:4px" id="bf"></div>
+      </div>
+      <div id="fee-chart"></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <span class="ct" style="margin:0">품목별 생산 배분 계획</span>
+        <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>No.</th><th>제품명</th><th>노동비</th><th>총수량</th><th>기수</th><th>구분</th><th>생산자</th><th>QC율</th><th>가중치</th><th>배분수량</th><th>소계</th><th>비고</th></tr></thead>
+          <tbody id="plan-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- QC 이력 -->
+<div id="s-qc" class="sec">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <span class="ct" style="margin:0">QC 이력 <span id="qc-source-label" style="font-size:12px;color:var(--text2);font-weight:400">— 2026년 5월 (기본 데이터)</span></span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:12px;color:var(--text2)">정렬:</span>
+        <select id="qc-sort" onchange="renderQCTab()" style="width:auto;font-size:12px;padding:4px 8px">
+          <option value="batch">기수순</option>
+          <option value="rate-hi">QC 높은순</option>
+          <option value="rate-lo">QC 낮은순</option>
+          <option value="qty">생산량 많은순</option>
+        </select>
+      </div>
+    </div>
+    <div class="smg" id="qc-summary-grid"></div>
+    <div class="frow" id="qc-batch-filter"><span style="font-size:12px;color:var(--text2);font-weight:500">기수:</span></div>
+    <div id="qc-list"></div>
+  </div>
+  <div class="card">
+    <div class="ct">QC 통과율 분포</div>
+    <div id="qc-dist-chart"></div>
+  </div>
+</div>
+
+<!-- HMP 현황 -->
+<div id="s-hmp" class="sec">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <span class="ct" style="margin:0">HMP 생산자 목록</span>
+      <button class="btn btn-sm btn-p" onclick="openAddHmpModal()">+ HMP 추가</button>
+    </div>
+    <div class="frow" id="hmp-filters"><span style="font-size:12px;font-weight:500;color:var(--text2)">기수:</span></div>
+    <div style="margin-bottom:12px"><input type="text" id="hmp-search" placeholder="이름 또는 제품 검색..." oninput="renderHMPList()" style="max-width:300px"></div>
+    <div id="hmp-list"></div>
+  </div>
+</div>
+
+<!-- 데이터 관리 -->
+<div id="s-manage" class="sec">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span class="ct" style="margin:0">제품 & 노동비 관리</span>
+      <button class="btn btn-sm btn-p" onclick="openAddProductModal()">+ 제품 추가</button>
+    </div>
+    <div style="margin-bottom:10px"><input type="text" id="prod-search" placeholder="제품명 검색..." oninput="renderProductList()" style="max-width:260px"></div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>제품명</th><th>노동비 (UGX)</th><th>생산 가능 HMP</th><th>관리</th></tr></thead>
+        <tbody id="product-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">데이터 현황</div>
+    <div class="smg" id="data-stats"></div>
+    <div style="font-size:13px;color:var(--text2);line-height:2">
+      마지막 수정: <span id="last-modified" style="color:var(--text);font-weight:500">-</span>
+    </div>
+  </div>
+</div>
+
+<div class="footer">SDC × HMP Production Planning System · QC 이력 기반 균등 노동비 배분</div>
+</div>
+
+<!-- 모달들 -->
+<div class="modal-overlay" id="hmp-modal">
+  <div class="modal">
+    <h3 id="hmp-modal-title">HMP 추가</h3>
+    <input type="hidden" id="hmp-edit-idx" value="-1">
+    <div class="row2">
+      <div class="fg"><label>이름</label><input type="text" id="hmp-name" placeholder="예: JANE DOE"></div>
+      <div class="fg"><label>기수</label>
+        <select id="hmp-batch"><option value="1">1기</option><option value="2">2기</option><option value="3">3기</option><option value="4">4기</option><option value="5">5기</option><option value="6">6기</option><option value="7">7기</option><option value="8">8기</option></select>
+      </div>
+    </div>
+    <div class="fg" style="margin-bottom:10px"><label>구분</label>
+      <select id="hmp-cat"><option value="HMP">HMP</option><option value="Skilled HMP">Skilled HMP</option><option value="Assistant Teacher">Assistant Teacher</option><option value="UNIFORM TEAM">UNIFORM TEAM</option><option value="DESIGN TEAM">DESIGN TEAM</option><option value="PARTNER BRAND">PARTNER BRAND</option></select>
+    </div>
+    <div class="fg" style="margin-bottom:10px">
+      <label>생산 가능 품목</label>
+      <div class="tag-wrap" id="capable-wrap" onclick="document.getElementById('capable-input').focus()">
+        <input type="text" id="capable-input" placeholder="품목 입력 후 Enter..." oninput="showCapableSuggest()" onkeydown="capableKeydown(event)" autocomplete="off">
+      </div>
+      <div id="capable-suggest" style="position:relative"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('hmp-modal')">취소</button>
+      <button class="btn btn-p" onclick="saveHMP()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <h3 id="prod-modal-title">제품 추가</h3>
+    <input type="hidden" id="prod-edit-key" value="">
+    <div class="row2">
+      <div class="fg"><label>제품명</label><input type="text" id="prod-name" placeholder="예: New Bag(L)"></div>
+      <div class="fg"><label>노동비 (UGX/pcs)</label><input type="number" id="prod-fee" placeholder="예: 3000"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('product-modal')">취소</button>
+      <button class="btn btn-p" onclick="saveProduct()">저장</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="upload-modal">
+  <div class="modal" style="max-width:600px">
+    <h3>📥 데이터 업데이트</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">엑셀 파일을 업로드하거나 JSON 백업으로 복원하세요.</p>
+
+    <!-- 탭 -->
+    <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:16px;gap:0">
+      <button class="upload-tab active" onclick="switchUploadTab('hmp')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);font-family:inherit">HMP 명단</button>
+      <button class="upload-tab" onclick="switchUploadTab('labor')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit">노동비</button>
+      <button class="upload-tab" onclick="switchUploadTab('qc')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit">QC 이력</button>
+      <button class="upload-tab" onclick="switchUploadTab('json')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit">JSON 백업</button>
+    </div>
+
+    <!-- HMP 명단 업로드 -->
+    <div id="utab-hmp" class="utab-content">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">
+        <strong style="color:var(--text)">HMP_Production_Capable_Item_Information.xlsx</strong> 형식<br>
+        시트: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">HMP Information</code> — Category / Batch / Name / 제품코드(v표시)
+      </div>
+      <div id="hmp-drop-zone" class="drop-zone" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event,'hmp')">
+        <div style="font-size:28px;margin-bottom:8px">📂</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px">엑셀 파일을 여기에 드래그하거나</div>
+        <label style="cursor:pointer;color:var(--accent);font-size:13px;font-weight:500">
+          클릭하여 파일 선택
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(event,'hmp')">
+        </label>
+      </div>
+      <div id="hmp-upload-result" style="margin-top:10px"></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px">⚠ 기존 HMP 데이터를 덮어씁니다. 업로드 전 백업을 권장합니다.</div>
+    </div>
+
+    <!-- 노동비 업로드 -->
+    <div id="utab-labor" class="utab-content" style="display:none">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">
+        <strong style="color:var(--text)">HMP_Production_Capable_Item_Information.xlsx</strong> 형식<br>
+        시트: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">Labor cost</code> — No. / Product Name / Labor Cost
+      </div>
+      <div id="labor-drop-zone" class="drop-zone" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event,'labor')">
+        <div style="font-size:28px;margin-bottom:8px">📂</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px">엑셀 파일을 여기에 드래그하거나</div>
+        <label style="cursor:pointer;color:var(--accent);font-size:13px;font-weight:500">
+          클릭하여 파일 선택
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(event,'labor')">
+        </label>
+      </div>
+      <div id="labor-upload-result" style="margin-top:10px"></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px">⚠ 기존 노동비 데이터를 덮어씁니다.</div>
+    </div>
+
+    <!-- QC 이력 업로드 -->
+    <div id="utab-qc" class="utab-content" style="display:none">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">
+        <strong style="color:var(--text)">HMP_Motivation_Fee_Details.xlsx</strong> 형식<br>
+        시트: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">월 이름 (예: May, June)</code> — Y / M / Product name / Submitted Qty / QC pass QTY / HMP
+      </div>
+      <div class="fg" style="margin-bottom:10px">
+        <label>적용할 월 (시트명)</label>
+        <input type="text" id="qc-sheet-name" placeholder="예: May, June, July" style="max-width:200px">
+      </div>
+      <div id="qc-drop-zone" class="drop-zone" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event,'qc')">
+        <div style="font-size:28px;margin-bottom:8px">📂</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px">엑셀 파일을 여기에 드래그하거나</div>
+        <label style="cursor:pointer;color:var(--accent);font-size:13px;font-weight:500">
+          클릭하여 파일 선택
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(event,'qc')">
+        </label>
+      </div>
+      <div id="qc-upload-result" style="margin-top:10px"></div>
+    </div>
+
+    <!-- JSON 백업 복원 -->
+    <div id="utab-json" class="utab-content" style="display:none">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">💾 백업 버튼으로 다운로드한 JSON 파일의 내용을 붙여넣으세요.</div>
+      <textarea id="import-json" placeholder='{"producers":[...],"laborFee":{...}}' style="height:130px;font-size:12px;font-family:monospace"></textarea>
+      <button class="btn btn-p" style="margin-top:8px;width:100%" onclick="importData()">복원하기</button>
+    </div>
+
+    <div class="modal-footer" style="margin-top:8px">
+      <button class="btn" onclick="closeModal('upload-modal')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ── DEFAULT DATA ──
+const DEFAULT_PRODUCERS=[{"category":"DESIGN TEAM","batch":2,"name":"NATUHWERA FATIA","capable":[]},{"category":"DESIGN TEAM","batch":2,"name":"NAKALYANGO FATUMAH","capable":[]},{"category":"DESIGN TEAM","batch":3,"name":"MARION NAMUBIRU","capable":[]},{"category":"DESIGN TEAM","batch":4,"name":"DAISY ALITUHA","capable":[]},{"category":"UNIFORM TEAM","batch":2,"name":"KICONCO BENITAH","capable":["Gloria bag(L)","Gloria bag(S)","Elephant bag(L)","Elephant bag(S)","Standard bag","Jerrycan bag","Casual bag","Wrist bag","Picnic bag","Upcycled Tote bag","Present Pouch(L)","Present Pouch(S)","Cup holder","Hair band","Head band","Rope Head Band","Pot Gloves","Basic Pouch","Stand Pouch","Two Pockets Pouch","Wrist Pouch","Pencil Case v1","Travel Tag","Square Pouch","Fortune Fish(S)","Fortune Fish(L)","Flower Keyring","Leaf keyring","Whale(S)","Whale(L)","Seahorse(S)","Seahorse(L)","Book bag v2","K.Lucky bag(kitenge)","K.Lucky bag(Plain)","Shoppers bag v3","Kitenge straps","Hair band v2","Turtle(L)","Upcycled Shoulder bag","Upcycled chess bag","Turtle(XL)","Fruit Coaster apple","Nature bag","Pencil case v2","Summer Hat","Fruit coaster pumpkin","Fruit coaster watermelon","Apron","Classic wallet","SDC coaster"]},{"category":"UNIFORM TEAM","batch":2,"name":"AMINA AJAMBO","capable":["Elephant bag(L)","Jerrycan bag","Wrist bag","Picnic bag","Upcycled Tote bag","Present Pouch(L)","Present Pouch(S)","Cup holder","Hair band","Head band","Rope Head Band","Pot Gloves","Two Pockets Pouch","Pencil Case v1","Travel Tag","Fortune Fish(S)","Fortune Fish(L)","Whale(S)","Whale(L)","Dolphin(S)","Dolphin(L)","Seahorse(S)","Seahorse(L)","Book bag v2","K.Lucky bag(kitenge)","K.Lucky bag(Plain)","Shoppers bag v3","Kitenge straps","Hair band v2","Pencil case v2","Fruit coaster watermelon"]},{"category":"UNIFORM TEAM","batch":1,"name":"NAMBOOZE ROBINAH","capable":["Gloria bag(L)","Gloria bag(S)","Elephant bag(L)","Elephant bag(S)","Standard bag","Jerrycan bag","Casual bag","Wrist bag","Picnic bag","Present Pouch(L)","Present Pouch(S)","Cup holder","Hair band","Head band","Rope Head Band","Pot Gloves","Wrist Pouch","Pencil Case v1","Travel Tag","Square Pouch","Shoppers bag v3","Kitenge straps","Fruit Coaster apple","Pencil case v2","Summer Hat","Fruit coaster pumpkin","Fruit coaster watermelon"]},{"category":"Assistant Teacher","batch":2,"name":"FATUMA AISHA","capable":["Elephant bag(L)","Elephant bag(S)","Standard bag","Jerrycan bag","Wrist bag","Picnic bag","Upcycled Tote bag","Present Pouch(L)","Present Pouch(S)","Cup holder","Hair band","Head band","Pot Gloves","Basic Pouch","Wrist Pouch","Pencil Case v1","Travel Tag","Square Pouch","Fortune Fish(S)","Fortune Fish(L)","Flower Keyring","Whale(S)","Whale(L)","Dolphin(S)","Dolphin(L)","Seahorse(S)","Seahorse(L)","Book bag v2","Shoppers bag v3","Kitenge straps","Hair band v2","Fruit Coaster apple","Pencil case v2","Fruit coaster pumpkin","Fruit coaster watermelon"]},{"category":"Assistant Teacher","batch":5,"name":"PRISCA ALIMOCAN","capable":["Elephant bag(L)","Elephant bag(S)","Standard bag","Jerrycan bag","Wrist bag","Picnic bag","Present Pouch(L)","Present Pouch(S)","Cup holder","Hair band","Head band","Rope Head Band","Pot Gloves","Basic Pouch","Stand Pouch","Two Pockets Pouch","Wrist Pouch","Pencil Case v1","Travel Tag","Square Pouch","Fortune Fish(S)","Fortune Fish(L)","Whale(S)","Whale(L)","Dolphin(S)","Dolphin(L)","Seahorse(S)","Seahorse(L)","Book bag v2","Shoppers bag v3","Kitenge straps","Hair band v2","Fruit Coaster apple","Pencil case v2","Summer Hat","Fruit coaster pumpkin","Fruit coaster watermelon","SDC coaster"]},{"category":"Skilled HMP","batch":5,"name":"FRANCESCA ALEZOYO","capable":["Elephant bag(L)","Elephant bag(S)","Jerrycan bag","Wrist bag","Picnic bag","Present Pouch(L)","Present Pouch(S)","Pot Gloves","Basic Pouch","Stand Pouch","Two Pockets Pouch","Wrist Pouch","Pencil Case v1","Square Pouch","Fortune Fish(S)","Fortune Fish(L)","Whale(S)","Whale(L)","Dolphin(S)","Dolphin(L)","Seahorse(S)","Seahorse(L)","Book bag v2","Shoppers bag v3","Kitenge straps","Hair band v2","Fruit Coaster apple","Nature bag","Pencil case v2","Fruit coaster pumpkin","Fruit coaster watermelon"]},{"category":"Skilled HMP","batch":5,"name":"NAMULINDA ZAKIAH","capable":[]},{"category":"Skilled HMP","batch":4,"name":"RAHMA NASSOZI","capable":[]},{"category":"Skilled HMP","batch":5,"name":"ALOYO NANCY","capable":["Elephant bag(L)","Elephant bag(S)","Jerrycan bag","Wrist bag","Picnic bag","Present Pouch(L)","Present Pouch(S)","Pot Gloves","Basic Pouch","Stand Pouch","Two Pockets Pouch","Wrist Pouch","Pencil Case v1","Square Pouch","Fortune Fish(S)","Fortune Fish(L)","Whale(S)","Whale(L)","Dolphin(S)","Dolphin(L)","Seahorse(S)","Seahorse(L)","Book bag v2","Shoppers bag v3","Kitenge straps","Hair band v2","Fruit Coaster apple","Nature bag","Pencil case v2","Fruit coaster pumpkin","Fruit coaster watermelon"]},{"category":"Skilled HMP","batch":5,"name":"LAMWAKA JOSEPHINE","capable":["Jerrycan bag","Wrist bag","Picnic bag","Present Pouch(L)","Present Pouch(S)","Hair band","Stand Pouch","Two Pockets Pouch","Pencil Case v1","Square Pouch","Book bag v2","Shoppers bag v3","Kitenge straps","Hair band v2","Pencil case v2","Fruit coaster watermelon","Apron"]},{"category":"Skilled HMP","batch":5,"name":"SOPHIE WANYANA","capable":[]},{"category":"Skilled HMP","batch":5,"name":"GRACE NIKUZE","capable":[]},{"category":"Skilled HMP","batch":2,"name":"BABIRYE SHAKIRAH","capable":[]},{"category":"Skilled HMP","batch":5,"name":"PAMELA PINYOLOYA","capable":["Jerrycan bag","Wrist bag","Picnic bag","Present Pouch(L)","Present Pouch(S)","Cup holder","Hair band","Head band","Basic Pouch","Stand Pouch","Two Pockets Pouch","Wrist Pouch","Pencil Case v1","Travel Tag","Square Pouch","Whale(S)","Whale(L)","Dolphin(S)","Dolphin(L)","Book bag v2"]},{"category":"Skilled HMP","batch":3,"name":"ATIM BRENDA","capable":["Shoppers bag v3","Kitenge straps","Turtle(L)","Fruit Coaster apple","Nature bag","Pencil case v2","Summer Hat","Fruit coaster pumpkin","Fruit coaster watermelon"]},{"category":"PARTNER BRAND","batch":2,"name":"ALELO SUSAN","capable":[]},{"category":"PARTNER BRAND","batch":3,"name":"AWEKONIMUNGU BRIDGET","capable":[]},{"category":"HMP","batch":1,"name":"NABAASA MONICA","capable":["Jerrycan bag","Present Pouch(S)","Cup holder","Hair band","Pot Gloves"]},{"category":"HMP","batch":1,"name":"MUTESI PROSSY","capable":["Elephant bag(S)","Jerrycan bag","Hair band","Pot Gloves"]},{"category":"HMP","batch":1,"name":"NABAKOOZA EDITH JACKIE","capable":["Pencil Case v1"]},{"category":"HMP","batch":1,"name":"BIRUNGI FAHIMA","capable":["Jerrycan bag","Cup holder","Pot Gloves","Pencil Case v1"]},{"category":"HMP","batch":1,"name":"GRACE NABABI KITYO","capable":[]},{"category":"HMP","batch":1,"name":"NAKYANZI RUTH","capable":[]},{"category":"HMP","batch":1,"name":"NAGAWA JOSEPHINE","capable":["Jerrycan bag","Cup holder","Pot Gloves","Pencil Case v1"]},{"category":"HMP","batch":1,"name":"BASIRIKA SHARON","capable":[]},{"category":"HMP","batch":2,"name":"NAKAKANDE REMA","capable":[]},{"category":"HMP","batch":2,"name":"BAMUSIME BRENDA","capable":[]},{"category":"HMP","batch":2,"name":"AGABAIRWE RITAH","capable":["Pot Gloves"]},{"category":"HMP","batch":2,"name":"NAKAWEMBA FATUMA","capable":[]},{"category":"HMP","batch":2,"name":"NAIGINO EDITH","capable":["Jerrycan bag","Wrist bag","Picnic bag","Present Pouch(L)","Present Pouch(S)","Cup holder","Pot Gloves","Whale(S)","Whale(L)","Book bag v2","Shoppers bag v3"]},{"category":"HMP","batch":2,"name":"INGABIRE CHARITY","capable":[]},{"category":"HMP","batch":2,"name":"NAKYANZI JACINTA","capable":[]},{"category":"HMP","batch":2,"name":"LAKOT DALINA","capable":["Elephant bag(L)","Elephant bag(S)","Standard bag","Jerrycan bag","Wrist bag","Picnic bag","Upcycled Tote bag","Present Pouch(L)","Present Pouch(S)","Cup holder","Hair band","Basic Pouch","Two Pockets Pouch","Wrist Pouch","Pencil Case v1","Travel Tag","Square Pouch","Fortune Fish(S)","Fortune Fish(L)","Whale(S)","Whale(L)","Dolphin(S)","Dolphin(L)","Seahorse(S)","Seahorse(L)","K.Lucky bag(kitenge)","K.Lucky bag(Plain)","Shoppers bag v3","Kitenge straps","Hair band v2","Upcycled Shoulder bag","Pencil case v2"]},{"category":"HMP","batch":2,"name":"KATUSHABE FAITH","capable":[]},{"category":"HMP","batch":2,"name":"NAMPIIMA GLADYS","capable":[]},{"category":"HMP","batch":3,"name":"AKELLO ROBINAH","capable":[]},{"category":"HMP","batch":3,"name":"ASINDE JACKIE SHARON","capable":[]},{"category":"HMP","batch":3,"name":"ABER LINDA","capable":[]},{"category":"HMP","batch":3,"name":"ARIECHO PATRICIA","capable":[]},{"category":"HMP","batch":3,"name":"NAMUKWAYA MARIAM","capable":[]},{"category":"HMP","batch":3,"name":"NAKAWESA LYDIA","capable":[]},{"category":"HMP","batch":3,"name":"NAKYANZI CATE","capable":[]},{"category":"HMP","batch":3,"name":"TURYASINGURA JUDITH","capable":[]},{"category":"HMP","batch":3,"name":"NAKAZIBWE MERCY","capable":[]},{"category":"HMP","batch":3,"name":"KWIOCWINY JACINTA","capable":[]},{"category":"HMP","batch":3,"name":"MUTESI JOAN","capable":[]},{"category":"HMP","batch":3,"name":"NTEGYERIZE MERCY","capable":["Jerrycan bag","Wrist bag","Pencil Case v1","Seahorse(L)","Book bag v2","Kitenge straps"]},{"category":"HMP","batch":3,"name":"NAIGAGA BITAMISI","capable":["Wrist bag","Pencil Case v1","Whale(S)","Whale(L)","Dolphin(S)","Dolphin(L)","Seahorse(S)","Pencil case v2"]},{"category":"HMP","batch":3,"name":"BIRUNGI FAZIRA","capable":[]},{"category":"HMP","batch":4,"name":"LAUREEN NGAIRA","capable":[]},{"category":"HMP","batch":4,"name":"BABIWEMBA BRENDA","capable":[]},{"category":"HMP","batch":4,"name":"AKANYONGERA GLORIA","capable":[]},{"category":"HMP","batch":4,"name":"KATUSHABE FLAVIA","capable":["Wrist bag","Shoppers bag v3"]},{"category":"HMP","batch":4,"name":"NAKAYE MONICA","capable":["Dolphin(S)","Dolphin(L)"]},{"category":"HMP","batch":4,"name":"ANGELLA GAFAYO","capable":["Standard bag","Wrist bag","Hair band","Head band","Two Pockets Pouch","Wrist Pouch","Pencil Case v1","Shoppers bag v3","Kitenge straps","Hair band v2","Fruit Coaster apple","Fruit coaster watermelon"]},{"category":"HMP","batch":4,"name":"MUHIRWE DIANA","capable":["Wrist Pouch","Pencil Case v1","Dolphin(S)","Dolphin(L)"]},{"category":"HMP","batch":4,"name":"NABAYEGO BRENDAH","capable":["Elephant bag(L)","Elephant bag(S)","Standard bag","Wrist bag","Picnic bag","Present Pouch(L)","Cup holder","Hair band","Head band","Two Pockets Pouch","Wrist Pouch","Pencil Case v1","Square Pouch","Shoppers bag v3","Kitenge straps","Nature bag","Fruit coaster watermelon"]},{"category":"HMP","batch":4,"name":"TAAKA JOAN","capable":[]},{"category":"HMP","batch":4,"name":"AWINO SAFRA","capable":[]},{"category":"HMP","batch":4,"name":"NAMAGANDA SHAMSA","capable":["Standard bag","Jerrycan bag","Wrist bag","Cup holder","Hair band","Head band","Pot Gloves","Pencil Case v1","Book bag v2","Shoppers bag v3","Hair band v2"]},{"category":"HMP","batch":5,"name":"AWORI BETTY","capable":[]},{"category":"HMP","batch":5,"name":"MAKOHA JOAN","capable":[]},{"category":"HMP","batch":5,"name":"ABBO NANZIRINA","capable":[]},{"category":"HMP","batch":5,"name":"NABUKEERA BUSHIRA","capable":[]},{"category":"HMP","batch":5,"name":"NANDUDU HALIMA","capable":["Pencil Case v1","Shoppers bag v3","Kitenge straps"]},{"category":"HMP","batch":5,"name":"SAFI SANYU","capable":[]},{"category":"HMP","batch":5,"name":"KARUNGI KEBIRUNGI","capable":["Jerrycan bag","Wrist bag","Present Pouch(L)","Cup holder","Hair band","Basic Pouch","Stand Pouch","Two Pockets Pouch","Square Pouch","Dolphin(S)","Book bag v2","Shoppers bag v3","Kitenge straps"]},{"category":"HMP","batch":5,"name":"ANGEL ACHOLA ESTHER","capable":["Jerrycan bag","Wrist bag","Present Pouch(S)","Cup holder","Hair band","Two Pockets Pouch","Wrist Pouch","Pencil Case v1","Dolphin(S)","Kitenge straps"]},{"category":"HMP","batch":5,"name":"GIRAMIA LAURA","capable":[]},{"category":"HMP","batch":5,"name":"NABAKKA AIDAH","capable":["Kitenge straps"]},{"category":"HMP","batch":5,"name":"CHELANGAT RITAH","capable":["Jerrycan bag","Wrist bag","Two Pockets Pouch","Pencil Case v1","Shoppers bag v3","Pencil case v2"]},{"category":"HMP","batch":5,"name":"FEVEN KIBROM","capable":["Standard bag","Present Pouch(S)","Two Pockets Pouch","Pencil Case v1","Dolphin(S)","Book bag v2","Shoppers bag v3","Pencil case v2"]},{"category":"HMP","batch":5,"name":"MUSOKE ANGELLA","capable":[]},{"category":"HMP","batch":5,"name":"NAKISIGE ESTHER","capable":["Cup holder","Hair band","Book bag v2","Kitenge straps","Apron"]},{"category":"HMP","batch":5,"name":"KAHENDEKE HILDAH","capable":["Jerrycan bag","Wrist bag","Picnic bag","Present Pouch(L)","Present Pouch(S)","Cup holder","Hair band","Head band","Basic Pouch","Stand Pouch","Two Pockets Pouch","Wrist Pouch","Pencil Case v1","Travel Tag","Square Pouch","Whale(S)","Whale(L)","Dolphin(S)","Dolphin(L)","Book bag v2","Shoppers bag v3","Kitenge straps","Hair band v2","Turtle(L)","Fruit Coaster apple","Nature bag","Pencil case v2","Summer Hat","Fruit coaster pumpkin","Fruit coaster watermelon"]},{"category":"HMP","batch":5,"name":"NARDOS EYOB","capable":[]},{"category":"HMP","batch":5,"name":"Tumuhimbise Michelle Joan","capable":["Wrist bag","Present Pouch(L)","Cup holder","Pencil Case v1","Book bag v2","Shoppers bag v3","Pencil case v2"]},{"category":"HMP","batch":6,"name":"NALWADD RASHIDAH","capable":[]},{"category":"HMP","batch":6,"name":"KWAGALA VICTORIA NABULYA","capable":[]},{"category":"HMP","batch":6,"name":"NAMAJJA REBECCA","capable":[]},{"category":"HMP","batch":6,"name":"NANYONDO JOAN","capable":["Wrist bag","Present Pouch(L)","Present Pouch(S)","Cup holder","Hair band","Head band","Basic Pouch","Stand Pouch","Two Pockets Pouch","Pencil Case v1","Fortune Fish(S)","Fortune Fish(L)","Whale(S)","Whale(L)","Dolphin(S)","Dolphin(L)","Seahorse(S)","Shoppers bag v3","Kitenge straps","Hair band v2","Fruit Coaster apple","Pencil case v2","Fruit coaster pumpkin","Fruit coaster watermelon"]},{"category":"HMP","batch":6,"name":"NANTONGO SHAKIRAH","capable":[]},{"category":"HMP","batch":6,"name":"KYOHAIRWE LAURA","capable":[]},{"category":"HMP","batch":6,"name":"NAMULWASIRA MAYIMUNA","capable":["Wrist bag","Present Pouch(L)","Present Pouch(S)","Cup holder","Hair band","Head band","Two Pockets Pouch","Pencil Case v1","Dolphin(S)","Dolphin(L)","Book bag v2","Shoppers bag v3","Kitenge straps","Pencil case v2","Apron"]},{"category":"HMP","batch":6,"name":"HIDRI TEKLEBERHAN","capable":[]},{"category":"HMP","batch":6,"name":"AKASANSIRA EVELYNE","capable":["Hair band","Pencil Case v1","Kitenge straps"]},{"category":"HMP","batch":6,"name":"AKELLO JOAN VICKY","capable":[]},{"category":"HMP","batch":6,"name":"HELLEN KABASSIGA","capable":[]},{"category":"HMP","batch":6,"name":"TINO PEACE RHODAH","capable":[]},{"category":"HMP","batch":6,"name":"ALUKA GLADYS","capable":["Present Pouch(L)","Hair band","Shoppers bag v3","Kitenge straps","Pencil case v2","Apron"]},{"category":"HMP","batch":6,"name":"TUHAISE G PRIAH","capable":["Picnic bag","Present Pouch(L)","Hair band","Stand Pouch","Shoppers bag v3","Kitenge straps","Hair band v2","Pencil case v2","Apron"]},{"category":"HMP","batch":6,"name":"ANGUCIA LILIAN","capable":["Wrist bag","Present Pouch(L)","Cup holder","Hair band","Head band","Shoppers bag v3","Apron"]},{"category":"HMP","batch":6,"name":"NAMIRO DEBORAH","capable":["Present Pouch(L)","Present Pouch(S)","Cup holder","Pencil Case v1","Kitenge straps"]},{"category":"HMP","batch":6,"name":"SOLIANA TADELLE","capable":[]}];
+const DEFAULT_LABOR={"Gloria bag(L)":10000,"Gloria bag(S)":10000,"Elephant bag(L)":10000,"Elephant bag(S)":8000,"Standard bag":7000,"Jerrycan bag":7000,"Casual bag":9000,"Wrist bag":2500,"Picnic bag":4000,"Upcycled Tote bag":7000,"Present Pouch(L)":2000,"Present Pouch(S)":2000,"Cup holder":2000,"Hair band":1500,"Head band":1500,"Rope Head Band":3000,"Pot Gloves":2000,"Basic Pouch":2000,"Stand Pouch":2000,"Two Pockets Pouch":3000,"Wrist Pouch":2000,"Pencil Case v1":2000,"Travel Tag":2500,"Square Pouch":2500,"Fortune Fish(S)":2000,"Fortune Fish(L)":2500,"Flower Keyring":2500,"Leaf keyring":2000,"Whale(S)":3000,"Whale(L)":4000,"Dolphin(S)":3000,"Dolphin(L)":4000,"Seahorse(S)":3000,"Seahorse(L)":4000,"Book bag v2":3500,"K.Lucky bag(kitenge)":7000,"K.Lucky bag(Plain)":7000,"Shoppers bag v3":3500,"Kitenge straps":2000,"Hair band v2":2000,"Turtle(L)":7000,"Upcycled Shoulder bag":9000,"Upcycled chess bag":14000,"Turtle(XL)":10000,"Fruit Coaster apple":2000,"Nature bag":10000,"Pencil case v2":2500,"Summer Hat":7000,"Fruit coaster pumpkin":2000,"Fruit coaster watermelon":2000,"Apron":7000,"Classic wallet":5000,"SDC coaster":1000};
+
+// ── QC 데이터 (May 2026) ──
+// 이름 매핑: QC 파일 이름 → PRODUCERS 이름 (부분 일치로 처리)
+const QC_DATA_MAY={"Fahima Birungi":{"batch":1,"submitted":30,"qcPass":22,"rate":73.3,"products":[{"product":"Rope Head Band","submitted":30,"qc_pass":22}]},"Grace Kityo Nababi":{"batch":1,"submitted":34,"qcPass":34,"rate":100.0,"products":[{"product":"Cup holder","submitted":16,"qc_pass":16},{"product":"Shoppers Bag(Ecobag) v3","submitted":18,"qc_pass":18}]},"Josephine Nagawa":{"batch":1,"submitted":10,"qcPass":10,"rate":100.0,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Nabaasa Monica":{"batch":1,"submitted":10,"qcPass":10,"rate":100.0,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Nambooze Robinah":{"batch":1,"submitted":45,"qcPass":36,"rate":80.0,"products":[{"product":"Rope Head Band","submitted":35,"qc_pass":26},{"product":"Gloria bag (L)","submitted":10,"qc_pass":10}]},"Prossy Mutesi":{"batch":1,"submitted":46,"qcPass":27,"rate":58.7,"products":[{"product":"Fortune Fish (L)","submitted":46,"qc_pass":27}]},"Alelo Susan":{"batch":2,"submitted":12,"qcPass":5,"rate":41.7,"products":[{"product":"Dolphin (S)","submitted":4,"qc_pass":0},{"product":"Whale (S)","submitted":4,"qc_pass":2},{"product":"Seahorse (S)","submitted":4,"qc_pass":3}]},"Amina Ajambo":{"batch":2,"submitted":16,"qcPass":8,"rate":50.0,"products":[{"product":"Seahorse (S)","submitted":9,"qc_pass":8},{"product":"Picnic bag","submitted":3,"qc_pass":0},{"product":"Square Pouch","submitted":4,"qc_pass":0}]},"Babirye Shakirah":{"batch":2,"submitted":6,"qcPass":6,"rate":100.0,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":4,"qc_pass":4},{"product":"Fortune Fish (S)","submitted":2,"qc_pass":2}]},"Fatuma Aisha":{"batch":2,"submitted":72,"qcPass":85,"rate":100.0,"products":[{"product":"Seahorse (S)","submitted":50,"qc_pass":37},{"product":"Whale (S)","submitted":8,"qc_pass":8},{"product":"Jerrycan bag","submitted":9,"qc_pass":9}]},"Kiconco Benitah":{"batch":2,"submitted":20,"qcPass":18,"rate":90.0,"products":[{"product":"Apron","submitted":15,"qc_pass":13},{"product":"Upcycled Shoulder Bag","submitted":5,"qc_pass":5}]},"Lakot Dalina":{"batch":2,"submitted":50,"qcPass":6,"rate":12.0,"products":[{"product":"Hair Band_V2","submitted":50,"qc_pass":6}]},"Nakalyango Fatumah":{"batch":2,"submitted":15,"qcPass":16,"rate":100.0,"products":[{"product":"Turtle (L)","submitted":15,"qc_pass":10}]},"Nampima Gladys":{"batch":2,"submitted":56,"qcPass":44,"rate":78.6,"products":[{"product":"Seahorse (S)","submitted":51,"qc_pass":10},{"product":"Leaf keyring","submitted":5,"qc_pass":4}]},"Natuhwera Fatia":{"batch":2,"submitted":19,"qcPass":9,"rate":47.4,"products":[{"product":"Tote bag","submitted":8,"qc_pass":2},{"product":"Whale (L)","submitted":11,"qc_pass":7}]},"Fatumah Nakawemba":{"batch":2,"submitted":50,"qcPass":0,"rate":0.0,"products":[{"product":"Fortune fish (S)","submitted":50,"qc_pass":0}]},"Atim Brenda":{"batch":3,"submitted":19,"qcPass":35,"rate":100.0,"products":[{"product":"Turtle (L)","submitted":19,"qc_pass":8},{"product":"Shoppers Bag v3","submitted":0,"qc_pass":27}]},"Namubiru Marion":{"batch":3,"submitted":20,"qcPass":39,"rate":100.0,"products":[{"product":"Classic Wallet","submitted":20,"qc_pass":20}]},"Namukwaya Mariam":{"batch":3,"submitted":6,"qcPass":6,"rate":100.0,"products":[{"product":"Picnic bag","submitted":3,"qc_pass":3},{"product":"Square Pouch","submitted":3,"qc_pass":3}]},"Mercy Anet":{"batch":3,"submitted":12,"qcPass":0,"rate":0.0,"products":[{"product":"Book bag v2","submitted":12,"qc_pass":0}]},"Naigaga Bitamisi":{"batch":3,"submitted":26,"qcPass":0,"rate":0.0,"products":[{"product":"Shoppers Bag v2","submitted":26,"qc_pass":0}]},"Alituha Daize":{"batch":4,"submitted":0,"qcPass":19,"rate":100.0,"products":[{"product":"Turtle (L)","submitted":0,"qc_pass":19}]},"Katushabe Flavia":{"batch":4,"submitted":27,"qcPass":27,"rate":100.0,"products":[{"product":"Shoppers Bag v3","submitted":27,"qc_pass":27}]},"Nabayego Brendah":{"batch":4,"submitted":100,"qcPass":41,"rate":41.0,"products":[{"product":"Head band","submitted":97,"qc_pass":41},{"product":"Picnic bag","submitted":3,"qc_pass":0}]},"Shamsa Namaganda":{"batch":4,"submitted":10,"qcPass":10,"rate":100.0,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Muhirwe Diana":{"batch":4,"submitted":29,"qcPass":0,"rate":0.0,"products":[{"product":"Book bag v2","submitted":29,"qc_pass":0}]},"Akello Vicky Joan":{"batch":5,"submitted":30,"qcPass":0,"rate":0.0,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":0}]},"Alezoyo Franceca":{"batch":5,"submitted":24,"qcPass":21,"rate":87.5,"products":[{"product":"Dolphin (S)","submitted":24,"qc_pass":13}]},"Aloyo Nancy":{"batch":5,"submitted":15,"qcPass":18,"rate":100.0,"products":[{"product":"Dolphin (S)","submitted":15,"qc_pass":9}]},"Chelengat Ritah":{"batch":5,"submitted":30,"qcPass":23,"rate":76.7,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":23}]},"Grace Nikuze":{"batch":5,"submitted":12,"qcPass":11,"rate":91.7,"products":[{"product":"Whale (S)","submitted":12,"qc_pass":0}]},"Karungi Kebirungi":{"batch":5,"submitted":49,"qcPass":22,"rate":44.9,"products":[{"product":"Kitenge straps","submitted":49,"qc_pass":22}]},"Lamwaka Josephine":{"batch":5,"submitted":47,"qcPass":47,"rate":100.0,"products":[{"product":"Kitenge straps","submitted":47,"qc_pass":47}]},"Nakisige Esther":{"batch":5,"submitted":26,"qcPass":6,"rate":23.1,"products":[{"product":"Book bag v2","submitted":26,"qc_pass":6}]},"Namulinda Zakiah":{"batch":5,"submitted":30,"qcPass":7,"rate":23.3,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":7}]},"Nandudu Halima":{"batch":5,"submitted":34,"qcPass":0,"rate":0.0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":0},{"product":"Two Pocket Pouch","submitted":4,"qc_pass":0}]},"Prisca Alimocan":{"batch":5,"submitted":58,"qcPass":27,"rate":46.6,"products":[{"product":"Basic Pouch","submitted":50,"qc_pass":17},{"product":"Whale (S)","submitted":8,"qc_pass":8}]},"Akasansira Evelyne":{"batch":6,"submitted":43,"qcPass":4,"rate":9.3,"products":[{"product":"Kitenge straps","submitted":43,"qc_pass":4}]},"Angucia Lillian":{"batch":6,"submitted":30,"qcPass":0,"rate":0.0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":0}]},"Hidri Tekleberhan":{"batch":6,"submitted":50,"qcPass":0,"rate":0.0,"products":[{"product":"Fortune Fish (S)","submitted":50,"qc_pass":0}]},"Namiro Deborah":{"batch":6,"submitted":35,"qcPass":12,"rate":34.3,"products":[{"product":"Kitenge straps","submitted":35,"qc_pass":12}]},"Namulwasira Mayimuna":{"batch":6,"submitted":30,"qcPass":3,"rate":10.0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":3}]},"Tino Peace Rhodah":{"batch":6,"submitted":30,"qcPass":1,"rate":3.3,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":1}]}};
+
+// ── STATE ──
+let PRODUCERS,LABOR_FEE;
+let orders=[],planResult=null,activeBatch=null,activeHmpBatch=null,activeQcBatch=null;
+let capableTags=[],saveTimer=null;
+let settings={qcWeightMode:'soft',qcUnknownMode:'average',qcRefMonth:'may'};
+
+// ── 이름 매핑 (QC 이름 → PRODUCERS 이름) ──
+// QC 데이터의 이름과 PRODUCERS 이름을 퍼지 매칭
+function buildQcNameMap(){
+  const map={};
+  Object.keys(window.QC_DATA_ACTIVE||QC_DATA_MAY).forEach(qcName=>{
+    const qcLower=qcName.toLowerCase();
+    // 1. 정확히 이름의 토큰이 겹치는지 확인
+    let best=null,bestScore=0;
+    PRODUCERS.forEach(p=>{
+      const pLower=p.name.toLowerCase();
+      const qcTokens=qcLower.split(/\s+/);
+      const pTokens=pLower.split(/\s+/);
+      const matches=qcTokens.filter(t=>pTokens.some(pt=>pt.includes(t)||t.includes(pt))).length;
+      const score=matches/(Math.max(qcTokens.length,pTokens.length));
+      if(score>bestScore&&score>0.4){bestScore=score;best=p.name;}
+    });
+    if(best) map[qcName]=best;
+  });
+  return map;
+}
+
+// QC rate 가져오기 (PRODUCERS 이름으로)
+function getQcRate(producerName){
+  const map=buildQcNameMap();
+  // 역방향 찾기: producerName에 해당하는 qcName
+  const qcEntry=Object.entries(map).find(([,v])=>v===producerName);
+  if(!qcEntry) return null;
+  const qcData=(window.QC_DATA_ACTIVE||QC_DATA_MAY)[qcEntry[0]];
+  if(!qcData) return null;
+  return qcData.rate;
+}
+
+// QC 가중치 계산 (0.4~1.6 범위)
+function calcQcWeight(producerName){
+  const mode=settings.qcWeightMode;
+  if(mode==='none') return 1.0;
+  const rate=getQcRate(producerName);
+  // 모드별 범위
+  const ranges={soft:[0.8,1.2],medium:[0.6,1.4],strong:[0.4,1.6]};
+  const [minW,maxW]=ranges[mode]||[0.8,1.2];
+  if(rate===null){
+    // QC 데이터 없음
+    if(settings.qcUnknownMode==='full') return maxW;
+    if(settings.qcUnknownMode==='low') return minW;
+    return 1.0; // average
+  }
+  // rate: 0~100+ → weight: minW~maxW
+  const clampedRate=Math.min(100,Math.max(0,rate));
+  return minW+(maxW-minW)*(clampedRate/100);
+}
+
+function qcRateColor(rate){
+  if(rate===null) return '#9E9E9E';
+  if(rate>=80) return '#2E7D32';
+  if(rate>=50) return '#F57F17';
+  return '#C62828';
+}
+function qcBadgeClass(rate){
+  if(rate===null) return 'qc-none';
+  if(rate>=80) return 'qc-hi';
+  if(rate>=50) return 'qc-mid';
+  return 'qc-lo';
+}
+function weightBadgeClass(w){
+  if(w>=1.15) return 'w-full';
+  if(w>=1.0) return 'w-high';
+  if(w>=0.8) return 'w-mid';
+  if(w>0) return 'w-low';
+  return 'w-none';
+}
+function weightLabel(w,mode){
+  if(mode==='none') return '기본';
+  if(w>=1.15) return `×${w.toFixed(2)} ↑↑`;
+  if(w>=1.0) return `×${w.toFixed(2)} ↑`;
+  if(w>=0.8) return `×${w.toFixed(2)} ↓`;
+  return `×${w.toFixed(2)} ↓↓`;
+}
+
+// ── DATA ──
+function loadData(){
+  try{const s=localStorage.getItem('sdc_hmp_data');if(s){const d=JSON.parse(s);PRODUCERS=d.producers;LABOR_FEE=d.laborFee;}else{PRODUCERS=JSON.parse(JSON.stringify(DEFAULT_PRODUCERS));LABOR_FEE=JSON.parse(JSON.stringify(DEFAULT_LABOR));}}
+  catch(e){PRODUCERS=JSON.parse(JSON.stringify(DEFAULT_PRODUCERS));LABOR_FEE=JSON.parse(JSON.stringify(DEFAULT_LABOR));}
+  try{const o=localStorage.getItem('sdc_orders');if(o)orders=JSON.parse(o);}catch(e){}
+  try{const s=localStorage.getItem('sdc_settings');if(s)settings={...settings,...JSON.parse(s)};}catch(e){}
+  // QC 데이터: 업로드된 것 있으면 우선 사용
+  try{
+    const q=localStorage.getItem('sdc_qc_data');
+    if(q){const d=JSON.parse(q);window.QC_DATA_ACTIVE=d.data;window.QC_DATA_LIVE=d.data;}
+    else{window.QC_DATA_ACTIVE=QC_DATA_MAY;}
+  }catch(e){window.QC_DATA_ACTIVE=QC_DATA_MAY;}
+}
+function saveData(){
+  localStorage.setItem('sdc_hmp_data',JSON.stringify({producers:PRODUCERS,laborFee:LABOR_FEE,lastModified:new Date().toISOString()}));
+  const ind=document.getElementById('save-ind');ind.classList.add('show');
+  clearTimeout(saveTimer);saveTimer=setTimeout(()=>ind.classList.remove('show'),2000);
+}
+function saveOrders(){localStorage.setItem('sdc_orders',JSON.stringify(orders));}
+function saveSettings(){
+  settings.qcWeightMode=document.getElementById('qc-weight-mode').value;
+  settings.qcUnknownMode=document.getElementById('qc-unknown-mode').value;
+  settings.qcRefMonth=document.getElementById('qc-ref-month').value;
+  localStorage.setItem('sdc_settings',JSON.stringify(settings));
+  updateQcSettingDesc();
+}
+function updateQcSettingDesc(){
+  const mode=settings.qcWeightMode;
+  const desc={none:'QC 이력을 무시하고 모든 HMP에 동일하게 배분합니다.',soft:'QC 통과율에 따라 최대 ±20% 범위에서 배분량을 조정합니다.',medium:'QC 통과율에 따라 최대 ±40% 범위에서 배분량을 조정합니다.',strong:'QC 통과율에 따라 최대 ±60% 범위에서 배분량을 강하게 조정합니다.'};
+  document.getElementById('qc-setting-desc').textContent=desc[mode]||'';
+}
+function exportData(){
+  const d={producers:PRODUCERS,laborFee:LABOR_FEE,exportedAt:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='sdc_hmp_data_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+}
+function importData(){
+  try{const d=JSON.parse(document.getElementById('import-json').value);
+    if(!d.producers||!d.laborFee)throw new Error('invalid');
+    PRODUCERS=d.producers;LABOR_FEE=d.laborFee;
+    saveData();refreshAllUI();closeModal('upload-modal');alert('복원 완료');
+  }catch(e){alert('올바른 JSON 형식이 아닙니다.');}
+}
+
+// ── HELPERS ──
+function catClass(cat){const c=(cat||'').toUpperCase();if(c.includes('UNIFORM'))return'cat-U';if(c.includes('ASSISTANT'))return'cat-A';if(c.includes('SKILLED'))return'cat-S';if(c.includes('DESIGN'))return'cat-D';if(c.includes('PARTNER'))return'cat-P';return'cat-H';}
+function catLabel(cat){const c=(cat||'').toUpperCase();if(c.includes('UNIFORM'))return'UNIFORM';if(c.includes('ASSISTANT'))return'ASST.T';if(c.includes('SKILLED'))return'SKILLED';if(c.includes('DESIGN'))return'DESIGN';if(c.includes('PARTNER'))return'PARTNER';return'HMP';}
+function bCls(b){return'b'+(b<=8?b:1);}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+
+function go(t){
+  ['order','plan','qc','hmp','manage'].forEach((id,i)=>{
+    document.getElementById('s-'+id).classList.toggle('active',id===t);
+    document.querySelectorAll('.tab')[i].classList.toggle('active',id===t);
+  });
+  if(t==='qc'){renderQCTab();}
+  if(t==='hmp')renderHMPList();
+  if(t==='manage'){renderProductList();renderDataStats();}
+}
+function refreshAllUI(){rebuildProductSelect();setupHmpFilters();renderHMPList();renderOrders();renderProductList();renderDataStats();}
+
+// ── 제품 선택 ──
+function rebuildProductSelect(){
+  const sel=document.getElementById('inp-prod'),prev=sel.value;
+  sel.innerHTML='<option value="">-- 제품 선택 --</option>';
+  const all=[...new Set([...PRODUCERS.flatMap(p=>p.capable),...Object.keys(LABOR_FEE)])].sort();
+  all.forEach(p=>{const o=document.createElement('option');o.value=p;o.textContent=p;sel.appendChild(o);});
+  if(prev)sel.value=prev;
+}
+function onProdChange(){
+  const k=document.getElementById('inp-prod').value;
+  const el=document.getElementById('elig-info'),feeEl=document.getElementById('inp-fee');
+  if(!k){el.textContent='';return;}
+  const fee=LABOR_FEE[k]||0;
+  if(fee&&!feeEl.value)feeEl.value=fee;
+  const elig=PRODUCERS.filter(p=>p.capable.includes(k));
+  if(!elig.length){el.innerHTML='<span style="color:var(--red)">⚠ 생산 가능 HMP 없음</span>';return;}
+  const byB={};elig.forEach(p=>byB[p.batch]=(byB[p.batch]||0)+1);
+  const s=Object.entries(byB).sort((a,b)=>a[0]-b[0]).map(([b,c])=>`${b}기 ${c}명`).join(', ');
+  el.textContent=`생산 가능: ${elig.length}명 (${s}) · 노동비 ${fee.toLocaleString()} UGX/pcs`;
+}
+
+// ── ORDERS ──
+function addOrder(){
+  const k=document.getElementById('inp-prod').value;
+  const qty=parseInt(document.getElementById('inp-qty').value)||0;
+  const fee=parseInt(document.getElementById('inp-fee').value)||(LABOR_FEE[k]||0);
+  const note=document.getElementById('inp-note').value;
+  if(!k||!qty){alert('제품과 수량을 입력해주세요.');return;}
+  const ex=orders.find(o=>o.key===k);
+  if(ex)ex.qty+=qty; else orders.push({name:k,key:k,qty,fee,note});
+  renderOrders();saveOrders();
+  ['inp-qty','inp-fee','inp-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('inp-prod').value='';document.getElementById('elig-info').textContent='';
+}
+function removeOrder(i){orders.splice(i,1);renderOrders();saveOrders();}
+function renderOrders(){
+  document.getElementById('ocnt').textContent=orders.length+'개 품목';
+  const el=document.getElementById('olist');
+  if(!orders.length){el.innerHTML='<div class="empty">주문을 추가하거나 샘플을 불러오세요</div>';document.getElementById('ototal').textContent='';return;}
+  const tot=orders.reduce((s,o)=>s+o.qty*o.fee,0);
+  el.innerHTML=orders.map((o,i)=>`<div class="orow">
+    <span style="font-weight:500">${o.name}</span>
+    <span style="color:var(--text2)">${o.qty.toLocaleString()}</span>
+    <span style="color:var(--text2);font-size:12px">${(o.qty*o.fee).toLocaleString()} UGX</span>
+    <button class="btn btn-d btn-sm" onclick="removeOrder(${i})">×</button>
+  </div>`).join('');
+  document.getElementById('ototal').textContent=`총 노동비 ${tot.toLocaleString()} UGX`;
+}
+function loadSample(){
+  orders=[
+    {name:"Wrist Pouch",key:"Wrist Pouch",qty:300,fee:LABOR_FEE["Wrist Pouch"]||2000,note:""},
+    {name:"Pot Gloves",key:"Pot Gloves",qty:200,fee:LABOR_FEE["Pot Gloves"]||2000,note:""},
+    {name:"Present Pouch(S)",key:"Present Pouch(S)",qty:200,fee:LABOR_FEE["Present Pouch(S)"]||2000,note:""},
+    {name:"Present Pouch(L)",key:"Present Pouch(L)",qty:200,fee:LABOR_FEE["Present Pouch(L)"]||2000,note:""},
+    {name:"Hair band v2",key:"Hair band v2",qty:200,fee:LABOR_FEE["Hair band v2"]||2000,note:""},
+    {name:"Pencil Case v1",key:"Pencil Case v1",qty:300,fee:LABOR_FEE["Pencil Case v1"]||2000,note:""},
+    {name:"Dolphin(S)",key:"Dolphin(S)",qty:144,fee:LABOR_FEE["Dolphin(S)"]||3000,note:""},
+    {name:"Whale(S)",key:"Whale(S)",qty:192,fee:LABOR_FEE["Whale(S)"]||3000,note:""},
+  ];
+  renderOrders();saveOrders();
+}
+
+// ── PLAN (QC 가중치 적용) ──
+function equalizeDistribute(orders,producers){
+  const pFee={};producers.forEach(p=>pFee[p.name]=0);
+  const assign={};producers.forEach(p=>assign[p.name]={});
+  const weights={};producers.forEach(p=>weights[p.name]=calcQcWeight(p.name));
+  const totalLabor=orders.reduce((s,o)=>s+o.qty*o.fee,0);
+  const activeP=producers.filter(p=>p.capable.length>0);
+  // 가중치 합산으로 목표 조정
+  const totalWeight=activeP.reduce((s,p)=>s+weights[p.name],0);
+  const baseTarget=activeP.length>0?totalLabor/activeP.length:0;
+  // 각 HMP의 개인 목표 = baseTarget * weight
+  const personalTarget={};
+  activeP.forEach(p=>personalTarget[p.name]=baseTarget*weights[p.name]);
+  const eligible={};
+  orders.forEach(o=>{eligible[o.key]=producers.filter(p=>p.capable.includes(o.key)).map(p=>p.name);});
+  const sorted=[...orders].sort((a,b)=>(eligible[a.key]?.length||0)-(eligible[b.key]?.length||0));
+  const remaining={};orders.forEach(o=>remaining[o.key]=o.qty);
+  const unassigned={};
+  sorted.forEach(o=>{
+    const elig=eligible[o.key]||[];
+    if(!elig.length){unassigned[o.key]=o.qty;return;}
+    let rem=remaining[o.key],iter=0;
+    while(rem>0&&iter<100000){
+      iter++;
+      const es=elig.slice().sort((a,b)=>{
+        // 목표 대비 부족분 비율로 정렬
+        const aGap=(personalTarget[a]||baseTarget)-pFee[a];
+        const bGap=(personalTarget[b]||baseTarget)-pFee[b];
+        return bGap-aGap;
+      });
+      const chosen=es[0];
+      const gap=Math.max(0,(personalTarget[chosen]||baseTarget)-pFee[chosen]);
+      let qty=gap<=0?Math.max(1,Math.floor(rem/Math.max(1,elig.length))):Math.max(1,Math.floor(gap/o.fee));
+      qty=Math.min(qty,rem);
+      if(!assign[chosen][o.key])assign[chosen][o.key]={name:o.name,qty:0,fee:o.fee};
+      assign[chosen][o.key].qty+=qty;
+      pFee[chosen]+=qty*o.fee;rem-=qty;
+    }
+  });
+  return{assign,pFee,unassigned,baseTarget,weights,personalTarget};
+}
+
+function generate(){
+  if(!orders.length){alert('주문을 먼저 입력해주세요.');return;}
+  planResult=equalizeDistribute(orders,PRODUCERS);
+  renderPlan();go('plan');
+}
+
+function renderPlan(){
+  document.getElementById('plan-empty').style.display='none';
+  document.getElementById('plan-body').style.display='block';
+  const{pFee,unassigned,baseTarget,weights}=planResult;
+  const totalLabor=orders.reduce((s,o)=>s+o.qty*o.fee,0);
+  const av=Object.values(pFee).filter(v=>v>0);
+  const avg=av.length?av.reduce((a,b)=>a+b)/av.length:0;
+  const mode=settings.qcWeightMode;
+  document.getElementById('smg').innerHTML=`
+    <div class="smc"><div class="lbl">총 주문 품목</div><div class="val">${orders.length}</div></div>
+    <div class="smc"><div class="lbl">총 생산 수량</div><div class="val">${orders.reduce((s,o)=>s+o.qty,0).toLocaleString()}</div></div>
+    <div class="smc"><div class="lbl">총 노동비</div><div class="val">${Math.round(totalLabor/10000)}만</div></div>
+    <div class="smc"><div class="lbl">QC 반영 / 참여 HMP</div><div class="val">${mode==='none'?'미적용':mode==='soft'?'약':'중강'} · ${av.length}명</div></div>`;
+  document.getElementById('plan-warns').innerHTML=Object.entries(unassigned).filter(([,v])=>v>0)
+    .map(([k,q])=>`<div class="alert alert-warn">⚠ <strong>${k}</strong> ${q}pcs — 생산 가능 HMP 없음</div>`).join('');
+  activeBatch=null;renderBatchFilter();renderFeeChart(null);renderPlanTable(null);
+}
+
+function renderBatchFilter(){
+  const batches=[...new Set(PRODUCERS.map(p=>p.batch))].sort();
+  document.getElementById('bf').innerHTML=['전체',...batches].map((v,i)=>
+    `<button class="chip ${i===0&&activeBatch===null?'on':activeBatch===v?'on':''}" onclick="filterBatch(${v==='전체'?'null':v})">${v==='전체'?'전체':v+'기'}</button>`).join('');
+}
+function filterBatch(b){activeBatch=b;renderBatchFilter();renderFeeChart(b);renderPlanTable(b);}
+
+function renderFeeChart(bFilter){
+  const{pFee,baseTarget,weights,personalTarget}=planResult;
+  const list=PRODUCERS.filter(p=>p.capable.length>0&&(bFilter===null||p.batch===bFilter)).sort((a,b)=>pFee[b.name]-pFee[a.name]);
+  if(!list.length){document.getElementById('fee-chart').innerHTML='<div class="empty">데이터 없음</div>';return;}
+  const maxFee=Math.max(...list.map(p=>pFee[p.name]),(personalTarget?Math.max(...Object.values(personalTarget)):baseTarget)*1.3,1);
+  const tp=Math.round(baseTarget/maxFee*100);
+  document.getElementById('fee-chart').innerHTML=`<div style="margin-bottom:14px">${list.map(p=>{
+    const f=pFee[p.name]||0,pct=Math.round(f/maxFee*100);
+    const pt=personalTarget?personalTarget[p.name]:baseTarget;
+    const col=f===0?'var(--border2)':f>pt*1.3?'var(--red)':f>pt*0.7?'var(--accent)':'var(--yellow)';
+    const rate=getQcRate(p.name);
+    const rateStr=rate!==null?`${rate}%`:'N/A';
+    const wStr=settings.qcWeightMode!=='none'?` <span class="${weightBadgeClass(weights[p.name])}" style="font-size:10px">×${(weights[p.name]||1).toFixed(2)}</span>`:'';
+    return`<div style="display:grid;grid-template-columns:200px 1fr 80px;align-items:center;gap:8px;padding:3px 0">
+      <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name}">
+        <span class="bdg ${bCls(p.batch)}" style="margin-right:3px">${p.batch}</span>${p.name}${wStr}
+      </span>
+      <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${col}"></div><div class="bar-target" style="left:${tp}%"></div></div>
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px">
+        <span class="bdg ${qcBadgeClass(rate)}" style="font-size:10px">${rateStr}</span>
+        <span style="font-size:11px;font-weight:600">${f?Math.round(f/1000)+'천':'0'}</span>
+      </div>
+    </div>`;}).join('')}</div>
+  <div style="font-size:11px;color:var(--text3)">빨간 선 = 기본 목표 ${Math.round(baseTarget/1000)}천 UGX · QC 배지 = 5월 통과율 · 단위: 천 UGX${(()=>{const v=list.map(p=>pFee[p.name]).filter(x=>x>0);if(!v.length)return'';const av=v.reduce((a,b)=>a+b)/v.length;return' · 표준편차 '+Math.round(Math.sqrt(v.reduce((s,x)=>s+(x-av)**2,0)/v.length)/1000)+'천';})()}</div>`;
+}
+
+function renderPlanTable(bFilter){
+  const{assign,weights}=planResult;let rows='',no=1;
+  const mode=settings.qcWeightMode;
+  orders.forEach(o=>{
+    const ps=PRODUCERS.filter(p=>{if(bFilter!==null&&p.batch!==bFilter)return false;return assign[p.name][o.key]?.qty>0;});
+    if(!ps.length)return;
+    ps.forEach((p,i)=>{
+      const a=assign[p.name][o.key];
+      const rate=getQcRate(p.name);
+      const rateStr=rate!==null?`${rate}%`:'-';
+      const w=weights[p.name]||1;
+      const wStr=mode==='none'?'기본':weightLabel(w,mode);
+      rows+=`<tr>`;
+      if(i===0)rows+=`<td rowspan="${ps.length}" style="font-weight:600">${no}</td><td rowspan="${ps.length}" style="font-weight:500;white-space:nowrap">${o.name}</td><td rowspan="${ps.length}" style="font-size:12px;color:var(--text2)">${o.fee.toLocaleString()}</td><td rowspan="${ps.length}">${o.qty.toLocaleString()}</td>`;
+      rows+=`<td><span class="bdg ${bCls(p.batch)}">${p.batch}기</span></td>
+        <td><span class="bdg ${catClass(p.category)}" style="font-size:10px">${catLabel(p.category)}</span></td>
+        <td style="font-size:12px">${p.name}</td>
+        <td><span class="bdg ${qcBadgeClass(rate)}" style="font-size:10px">${rateStr}</span></td>
+        <td><span class="${weightBadgeClass(w)}">${wStr}</span></td>
+        <td style="font-weight:600">${a.qty.toLocaleString()}</td>
+        <td style="font-size:12px;color:var(--text2)">${(a.qty*a.fee).toLocaleString()}</td>`;
+      if(i===0)rows+=`<td rowspan="${ps.length}" style="font-size:12px;color:var(--text2)">${o.note||''}</td>`;
+      rows+=`</tr>`;
+    });no++;
+  });
+  document.getElementById('plan-tbody').innerHTML=rows||`<tr><td colspan="12" class="empty" style="padding:20px">해당 조건 데이터 없음</td></tr>`;
+}
+
+function exportCSV(){
+  if(!planResult)return;
+  const{assign,weights}=planResult;
+  const month=document.getElementById('sel-month').value;
+  let csv='\uFEFFNo.,제품명,노동비(UGX),총수량,기수,구분,생산자,QC통과율,가중치,배분수량,소계(UGX),비고\n';
+  let no=1;
+  orders.forEach(o=>{
+    PRODUCERS.filter(p=>assign[p.name][o.key]?.qty>0).forEach((p,i)=>{
+      const a=assign[p.name][o.key];
+      const rate=getQcRate(p.name);
+      const w=weights[p.name]||1;
+      csv+=`${i===0?no:''},${i===0?'"'+o.name+'"':''},${i===0?o.fee:''},${i===0?o.qty:''},${p.batch}기,${catLabel(p.category)},"${p.name}",${rate!==null?rate+'%':'N/A'},${w.toFixed(2)},${a.qty},${a.qty*a.fee},${i===0?(o.note||''):''}\n`;
+    });no++;
+  });
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download=month+'_생산계획_QC반영.csv';a.click();
+}
+
+// ── QC 탭 ──
+function renderQCTab(){
+  // 업로드된 QC 데이터면 출처 표시 업데이트
+  try{
+    const saved=localStorage.getItem('sdc_qc_data');
+    const lbl=document.getElementById('qc-source-label');
+    if(lbl){
+      if(saved){const d=JSON.parse(saved);lbl.textContent=`— ${d.sheet} 시트 (${new Date(d.uploadedAt).toLocaleDateString('ko-KR')} 업로드)`;}
+      else{lbl.textContent='— 2026년 5월 (기본 데이터)';}
+    }
+  }catch(e){}
+  // 요약
+  const all=Object.values(window.QC_DATA_ACTIVE||QC_DATA_MAY);
+  const withRate=all.filter(d=>d.submitted>0);
+  const avg=withRate.length?Math.round(withRate.reduce((s,d)=>s+d.rate,0)/withRate.length):0;
+  const hi=withRate.filter(d=>d.rate>=80).length;
+  const mid=withRate.filter(d=>d.rate>=50&&d.rate<80).length;
+  const lo=withRate.filter(d=>d.rate<50).length;
+  document.getElementById('qc-summary-grid').innerHTML=`
+    <div class="smc"><div class="lbl">참여 HMP</div><div class="val">${all.length}명</div></div>
+    <div class="smc"><div class="lbl">평균 QC 통과율</div><div class="val">${avg}%</div></div>
+    <div class="smc"><div class="lbl">우수 (80%↑) / 양호 (50%↑)</div><div class="val">${hi}명 / ${mid}명</div></div>
+    <div class="smc"><div class="lbl">주의 필요 (50%↓)</div><div class="val" style="color:var(--red)">${lo}명</div></div>`;
+  // 기수 필터
+  if(!document.getElementById('qc-batch-filter').querySelector('.chip')){
+    const batches=[...new Set(all.map(d=>d.batch))].sort();
+    document.getElementById('qc-batch-filter').innerHTML='<span style="font-size:12px;color:var(--text2);font-weight:500">기수:</span>'+
+      ['전체',...batches].map((v,i)=>`<button class="chip ${i===0?'on':''}" onclick="filterQcBatch(${v==='전체'?'null':v},this)">${v==='전체'?'전체':v+'기'}</button>`).join('');
+  }
+  renderQCList();
+  renderQCDistChart();
+}
+
+function filterQcBatch(b,el){
+  activeQcBatch=b;
+  document.querySelectorAll('#qc-batch-filter .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');renderQCList();
+}
+
+function renderQCList(){
+  const sort=document.getElementById('qc-sort')?.value||'batch';
+  let entries=Object.entries(window.QC_DATA_ACTIVE||QC_DATA_MAY).filter(([,d])=>activeQcBatch===null||d.batch===activeQcBatch);
+  entries.sort((a,b)=>{
+    if(sort==='batch') return a[1].batch-b[1].batch||a[0].localeCompare(b[0]);
+    if(sort==='rate-hi') return (b[1].rate||0)-(a[1].rate||0);
+    if(sort==='rate-lo') return (a[1].rate||0)-(b[1].rate||0);
+    if(sort==='qty') return b[1].submitted-a[1].submitted;
+    return 0;
+  });
+  document.getElementById('qc-list').innerHTML=entries.map(([name,d])=>{
+    const rate=d.rate;
+    const barColor=qcRateColor(rate);
+    const pcts=Math.min(100,Math.round(rate||0));
+    const prodRows=d.products.map(p=>`
+      <div style="display:grid;grid-template-columns:1fr 60px 60px 50px;gap:6px;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text2)">${p.product}</span>
+        <span style="text-align:right;color:var(--text2)">${p.submitted>0?p.submitted+'pcs':'-'}</span>
+        <span style="text-align:right;font-weight:500">${p.qc_pass}pcs</span>
+        <span style="text-align:right;color:${p.submitted>0?qcRateColor(Math.round(p.qc_pass/p.submitted*100)):'var(--text3)'};font-size:11px">${p.submitted>0?Math.round(p.qc_pass/p.submitted*100)+'%':'-'}</span>
+      </div>`).join('');
+    return`<div class="qc-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span class="bdg ${bCls(d.batch)}">${d.batch}기</span>
+        <span style="font-weight:600;font-size:13px">${name}</span>
+        <div class="qc-bar-wrap" style="flex:1">
+          <div class="qc-bar-bg"><div class="qc-bar-fill" style="width:${pcts}%;background:${barColor}"></div></div>
+          <span class="qc-rate-badge" style="color:${barColor}">${rate!==null?rate+'%':'N/A'}</span>
+        </div>
+        <span style="font-size:12px;color:var(--text2)">${d.submitted}제출 / ${d.qcPass}통과</span>
+      </div>
+      <div style="padding:0 4px">
+        <div style="display:grid;grid-template-columns:1fr 60px 60px 50px;gap:6px;font-size:11px;color:var(--text3);padding:2px 0;border-bottom:1px solid var(--border);margin-bottom:2px">
+          <span>품목</span><span style="text-align:right">제출</span><span style="text-align:right">QC통과</span><span style="text-align:right">통과율</span>
+        </div>
+        ${prodRows}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderQCDistChart(){
+  const all=Object.values(window.QC_DATA_ACTIVE||QC_DATA_MAY).filter(d=>d.submitted>0);
+  const buckets=[{label:'0%',min:0,max:1,col:'#C62828'},{label:'1~20%',min:1,max:20,col:'#E53935'},{label:'21~50%',min:20,max:50,col:'#FB8C00'},{label:'51~80%',min:50,max:80,col:'#43A047'},{label:'81~100%',min:80,max:101,col:'#1B5E20'}];
+  const counts=buckets.map(b=>({...b,count:all.filter(d=>d.rate>=b.min&&d.rate<b.max).length}));
+  const maxC=Math.max(...counts.map(b=>b.count),1);
+  document.getElementById('qc-dist-chart').innerHTML=`
+    <div style="display:flex;gap:12px;align-items:flex-end;height:120px;padding:0 8px;margin-bottom:8px">
+      ${counts.map(b=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+        <span style="font-size:12px;font-weight:700;color:${b.col}">${b.count}</span>
+        <div style="width:100%;background:${b.col};opacity:.85;height:${Math.round(b.count/maxC*80)+4}px;border-radius:4px 4px 0 0;min-height:4px"></div>
+      </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:12px;padding:0 8px">
+      ${counts.map(b=>`<div style="flex:1;text-align:center;font-size:11px;color:var(--text2)">${b.label}</div>`).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center">5월 QC 통과율 분포 (${all.length}명 기준)</div>`;
+}
+
+// ── HMP 현황 ──
+function setupHmpFilters(){
+  const batches=[...new Set(PRODUCERS.map(p=>p.batch))].sort();
+  const el=document.getElementById('hmp-filters');
+  el.innerHTML='<span style="font-size:12px;font-weight:500;color:var(--text2)">기수:</span>'+
+    ['전체',...batches].map((v,i)=>`<button class="chip ${i===0?'on':''}" onclick="filterHmp(${v==='전체'?'null':v},this)">${v==='전체'?'전체':v+'기'}</button>`).join('');
+}
+function filterHmp(b,el){activeHmpBatch=b;document.querySelectorAll('#hmp-filters .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderHMPList();}
+function renderHMPList(){
+  const search=(document.getElementById('hmp-search')?.value||'').toLowerCase();
+  const orderKeys=new Set(orders.map(o=>o.key));
+  const list=PRODUCERS.filter(p=>{
+    if(activeHmpBatch!==null&&p.batch!==activeHmpBatch)return false;
+    if(search&&!p.name.toLowerCase().includes(search)&&!p.capable.some(c=>c.toLowerCase().includes(search)))return false;
+    return true;
+  });
+  const idx=Object.fromEntries(PRODUCERS.map((p,i)=>[p.name,i]));
+  document.getElementById('hmp-list').innerHTML=list.map(p=>{
+    const rate=getQcRate(p.name);
+    const rateStr=rate!==null?`QC ${rate}%`:'QC N/A';
+    return`<div class="prow">
+      <div style="min-width:200px;display:flex;flex-wrap:wrap;align-items:center;gap:4px">
+        <span class="bdg ${bCls(p.batch)}">${p.batch}기</span>
+        <span class="bdg ${catClass(p.category)}" style="font-size:10px">${catLabel(p.category)}</span>
+        <span class="bdg ${qcBadgeClass(rate)}" style="font-size:10px">${rateStr}</span>
+        <span style="font-size:12px;font-weight:600">${p.name}</span>
+      </div>
+      <div class="ptags">${p.capable.length
+        ?p.capable.map(c=>`<span class="ptag ${orderKeys.has(c)?'hi':''}">${c}${LABOR_FEE[c]?' <span style="opacity:.5;font-size:10px">${LABOR_FEE[c].toLocaleString()}</span>':''}</span>`).join('')
+        :'<span style="font-size:12px;color:var(--text3)">생산 가능 품목 없음</span>'
+      }</div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="btn btn-sm" onclick="openEditHmpModal(${idx[p.name]})">편집</button>
+        <button class="btn btn-sm btn-d" onclick="deleteHMP(${idx[p.name]})">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── HMP 모달 ──
+function openAddHmpModal(){capableTags=[];document.getElementById('hmp-modal-title').textContent='HMP 추가';document.getElementById('hmp-edit-idx').value=-1;document.getElementById('hmp-name').value='';document.getElementById('hmp-batch').value=1;document.getElementById('hmp-cat').value='HMP';renderCapableTags();document.getElementById('hmp-modal').classList.add('open');}
+function openEditHmpModal(idx){const p=PRODUCERS[idx];capableTags=[...p.capable];document.getElementById('hmp-modal-title').textContent='HMP 수정';document.getElementById('hmp-edit-idx').value=idx;document.getElementById('hmp-name').value=p.name;document.getElementById('hmp-batch').value=p.batch;document.getElementById('hmp-cat').value=p.category;renderCapableTags();document.getElementById('hmp-modal').classList.add('open');}
+function renderCapableTags(){
+  const wrap=document.getElementById('capable-wrap'),input=document.getElementById('capable-input');
+  wrap.querySelectorAll('.tag-item').forEach(el=>el.remove());
+  capableTags.forEach((t,i)=>{const span=document.createElement('span');span.className='tag-item';span.innerHTML=`${t}<button onclick="removeCapableTag(${i})" type="button">×</button>`;wrap.insertBefore(span,input);});
+}
+function removeCapableTag(i){capableTags.splice(i,1);renderCapableTags();}
+function showCapableSuggest(){
+  const val=document.getElementById('capable-input').value.toLowerCase().trim();
+  const all=[...new Set([...Object.keys(LABOR_FEE),...PRODUCERS.flatMap(p=>p.capable)])].sort();
+  const matches=val?all.filter(p=>p.toLowerCase().includes(val)&&!capableTags.includes(p)).slice(0,8):[];
+  const el=document.getElementById('capable-suggest');
+  if(!matches.length){el.innerHTML='';return;}
+  el.innerHTML=`<div style="position:absolute;top:2px;left:0;right:0;background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);box-shadow:var(--shadow-md);z-index:100;max-height:180px;overflow-y:auto">`+
+    matches.map(m=>`<div onclick="selectCapable('${m.replace(/'/g,"\\'")}');event.stopPropagation()" style="padding:7px 12px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">${m}</div>`).join('')+'</div>';
+}
+function selectCapable(val){if(!capableTags.includes(val))capableTags.push(val);document.getElementById('capable-input').value='';document.getElementById('capable-suggest').innerHTML='';renderCapableTags();}
+function capableKeydown(e){if(e.key==='Enter'){e.preventDefault();const val=document.getElementById('capable-input').value.trim();if(val&&!capableTags.includes(val)){capableTags.push(val);document.getElementById('capable-input').value='';document.getElementById('capable-suggest').innerHTML='';renderCapableTags();}}}
+function saveHMP(){
+  const name=document.getElementById('hmp-name').value.trim().toUpperCase();
+  const batch=parseInt(document.getElementById('hmp-batch').value);
+  const cat=document.getElementById('hmp-cat').value;
+  const idx=parseInt(document.getElementById('hmp-edit-idx').value);
+  if(!name){alert('이름을 입력해주세요.');return;}
+  const entry={category:cat,batch,name,capable:[...capableTags]};
+  if(idx===-1)PRODUCERS.push(entry); else PRODUCERS[idx]=entry;
+  saveData();refreshAllUI();closeModal('hmp-modal');
+}
+function deleteHMP(idx){if(!confirm(`${PRODUCERS[idx].name}을(를) 삭제하시겠습니까?`))return;PRODUCERS.splice(idx,1);saveData();refreshAllUI();}
+
+// ── 제품 관리 ──
+function openAddProductModal(){document.getElementById('prod-modal-title').textContent='제품 추가';document.getElementById('prod-edit-key').value='';document.getElementById('prod-name').value='';document.getElementById('prod-fee').value='';document.getElementById('product-modal').classList.add('open');}
+function openEditProductModal(key){document.getElementById('prod-modal-title').textContent='제품 수정';document.getElementById('prod-edit-key').value=key;document.getElementById('prod-name').value=key;document.getElementById('prod-fee').value=LABOR_FEE[key]||0;document.getElementById('product-modal').classList.add('open');}
+function saveProduct(){
+  const name=document.getElementById('prod-name').value.trim();const fee=parseInt(document.getElementById('prod-fee').value)||0;const oldKey=document.getElementById('prod-edit-key').value;
+  if(!name){alert('제품명을 입력해주세요.');return;}
+  if(oldKey&&oldKey!==name){delete LABOR_FEE[oldKey];PRODUCERS.forEach(p=>{const i=p.capable.indexOf(oldKey);if(i>-1)p.capable[i]=name;});}
+  LABOR_FEE[name]=fee;saveData();refreshAllUI();closeModal('product-modal');
+}
+function deleteProduct(key){if(!confirm(`"${key}" 제품을 삭제하시겠습니까?`))return;delete LABOR_FEE[key];PRODUCERS.forEach(p=>{const i=p.capable.indexOf(key);if(i>-1)p.capable.splice(i,1);});saveData();refreshAllUI();}
+function renderProductList(){
+  const search=(document.getElementById('prod-search')?.value||'').toLowerCase();
+  const all=Object.keys(LABOR_FEE).filter(k=>!search||k.toLowerCase().includes(search)).sort();
+  const capCount={};PRODUCERS.forEach(p=>p.capable.forEach(c=>{capCount[c]=(capCount[c]||0)+1;}));
+  document.getElementById('product-tbody').innerHTML=all.map(k=>`<tr>
+    <td style="font-weight:500">${k}</td><td>${LABOR_FEE[k].toLocaleString()} UGX</td><td>${capCount[k]||0}명</td>
+    <td><div style="display:flex;gap:4px">
+      <button class="btn btn-sm" onclick="openEditProductModal('${k.replace(/'/g,"\\'")}')">수정</button>
+      <button class="btn btn-sm btn-d" onclick="deleteProduct('${k.replace(/'/g,"\\'")}')">삭제</button>
+    </div></td></tr>`).join('');
+}
+function renderDataStats(){
+  const activeHMP=PRODUCERS.filter(p=>p.capable.length>0).length;
+  document.getElementById('data-stats').innerHTML=`
+    <div class="smc"><div class="lbl">전체 HMP</div><div class="val">${PRODUCERS.length}명</div></div>
+    <div class="smc"><div class="lbl">생산 가능 HMP</div><div class="val">${activeHMP}명</div></div>
+    <div class="smc"><div class="lbl">QC 이력 보유</div><div class="val">${Object.keys(window.QC_DATA_ACTIVE||QC_DATA_MAY).length}명</div></div>
+    <div class="smc"><div class="lbl">등록 제품 수</div><div class="val">${Object.keys(LABOR_FEE).length}개</div></div>`;
+  try{const d=JSON.parse(localStorage.getItem('sdc_hmp_data')||'{}');document.getElementById('last-modified').textContent=d.lastModified?new Date(d.lastModified).toLocaleString('ko-KR'):'없음';}catch(e){}
+}
+
+// ── 업로드 탭 전환 ──
+function switchUploadTab(tab){
+  document.querySelectorAll('.utab-content').forEach(el=>el.style.display='none');
+  document.getElementById('utab-'+tab).style.display='block';
+  document.querySelectorAll('.upload-tab').forEach(btn=>{
+    const isActive=btn.getAttribute('onclick').includes("'"+tab+"'");
+    btn.style.color=isActive?'var(--accent)':'var(--text2)';
+    btn.style.borderBottom=isActive?'2px solid var(--accent)':'none';
+    btn.style.marginBottom=isActive?'-2px':'0';
+  });
+}
+
+// ── 드래그 앤 드롭 ──
+function dragOver(e){e.preventDefault();e.currentTarget.classList.add('over');}
+function dragLeave(e){e.currentTarget.classList.remove('over');}
+function dropFile(e,type){
+  e.preventDefault();e.currentTarget.classList.remove('over');
+  const file=e.dataTransfer.files[0];
+  if(file) parseExcelFile(file,type);
+}
+function handleFileUpload(e,type){
+  const file=e.target.files[0];
+  if(file) parseExcelFile(file,type);
+  e.target.value='';
+}
+
+// ── 엑셀 파싱 (SheetJS) ──
+function parseExcelFile(file,type){
+  const resultEl=document.getElementById(type+'-upload-result');
+  resultEl.innerHTML='<div style="font-size:13px;color:var(--text2)">⏳ 파일 읽는 중...</div>';
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      if(type==='hmp') parseHMPExcel(wb,resultEl);
+      else if(type==='labor') parseLaborExcel(wb,resultEl);
+      else if(type==='qc') parseQCExcel(wb,resultEl);
+    }catch(err){
+      resultEl.innerHTML=`<div class="upload-result-err">❌ 파일을 읽을 수 없습니다: ${err.message}</div>`;
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// ── HMP 파일 파싱 ──
+// 구조: row2=헤더(Category,Batch,No,Name,001,002...), row3=제품명, row4+=데이터
+function parseHMPExcel(wb,resultEl){
+  const wsName=wb.SheetNames.find(n=>n.toLowerCase().includes('hmp')||n.toLowerCase().includes('information'));
+  if(!wsName){resultEl.innerHTML='<div class="upload-result-err">❌ "HMP Information" 시트를 찾을 수 없습니다.</div>';return;}
+  const ws=wb.Sheets[wsName];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+
+  // 헤더(row idx 2), 제품명(row idx 3), 데이터(row idx 4+)
+  const headerRow=rows[2]||[];
+  const productRow=rows[3]||[];
+
+  // 제품 컬럼 인덱스 추출 (col 4부터)
+  const productCols={};
+  for(let i=4;i<productRow.length;i++){
+    if(productRow[i]) productCols[i]=String(productRow[i]).replace(/\n/g,' ').trim();
+  }
+
+  const newProducers=[];
+  let currentCategory=null;
+  for(let r=4;r<rows.length;r++){
+    const row=rows[r];
+    if(!row||!row.some(v=>v!==null)) continue;
+    if(row[0]) currentCategory=String(row[0]).trim();
+    const batch=row[1];const name=row[3];
+    if(!name||!batch) continue;
+    const capable=[];
+    Object.entries(productCols).forEach(([ci,pname])=>{
+      if(row[parseInt(ci)]==='v'||row[parseInt(ci)]==='V') capable.push(pname);
+    });
+    newProducers.push({category:currentCategory||'HMP',batch:parseInt(batch),name:String(name).trim(),capable});
+  }
+
+  if(!newProducers.length){resultEl.innerHTML='<div class="upload-result-err">❌ 파싱된 HMP가 없습니다. 파일 형식을 확인해주세요.</div>';return;}
+
+  PRODUCERS=newProducers;
+  saveData();refreshAllUI();
+  resultEl.innerHTML=`<div class="upload-result-ok">✅ HMP ${newProducers.length}명 업데이트 완료<br>
+    <span style="font-size:12px">생산 가능 품목 있는 HMP: ${newProducers.filter(p=>p.capable.length>0).length}명</span></div>`;
+}
+
+// ── 노동비 파일 파싱 ──
+// 구조: 헤더(No/Product Name/Labor Cost), 데이터 행
+function parseLaborExcel(wb,resultEl){
+  const wsName=wb.SheetNames.find(n=>n.toLowerCase().includes('labor')||n.toLowerCase().includes('cost'));
+  if(!wsName){resultEl.innerHTML='<div class="upload-result-err">❌ "Labor cost" 시트를 찾을 수 없습니다.</div>';return;}
+  const ws=wb.Sheets[wsName];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+
+  // 헤더 찾기: Product Name, Labor Cost 컬럼 위치 파악
+  let nameCol=-1,feeCol=-1,dataStart=0;
+  for(let r=0;r<rows.length;r++){
+    const row=rows[r];
+    if(!row) continue;
+    const nameIdx=row.findIndex(v=>v&&String(v).toLowerCase().includes('product'));
+    const feeIdx=row.findIndex(v=>v&&String(v).toLowerCase().includes('labor'));
+    if(nameIdx>=0&&feeIdx>=0){nameCol=nameIdx;feeCol=feeIdx;dataStart=r+1;break;}
+  }
+  if(nameCol<0){resultEl.innerHTML='<div class="upload-result-err">❌ Product Name / Labor Cost 컬럼을 찾을 수 없습니다.</div>';return;}
+
+  const newLabor={};let count=0;
+  for(let r=dataStart;r<rows.length;r++){
+    const row=rows[r];
+    if(!row||!row[nameCol]) continue;
+    const name=String(row[nameCol]).trim();
+    const fee=parseInt(row[feeCol]);
+    if(name&&!isNaN(fee)&&fee>0){newLabor[name]=fee;count++;}
+  }
+
+  if(!count){resultEl.innerHTML='<div class="upload-result-err">❌ 파싱된 노동비 항목이 없습니다.</div>';return;}
+
+  LABOR_FEE=newLabor;
+  saveData();refreshAllUI();
+  resultEl.innerHTML=`<div class="upload-result-ok">✅ 노동비 ${count}개 제품 업데이트 완료</div>`;
+}
+
+// ── QC 파일 파싱 ──
+// 구조: Y/M/Product name/Submitted Qty/QC pass QTY/HMP/NOTE
+function parseQCExcel(wb,resultEl){
+  const targetSheet=document.getElementById('qc-sheet-name').value.trim();
+  // 시트 찾기: 입력값 우선, 없으면 마지막 시트
+  let wsName=null;
+  if(targetSheet){
+    wsName=wb.SheetNames.find(n=>n.toLowerCase()===targetSheet.toLowerCase())||
+           wb.SheetNames.find(n=>n.toLowerCase().includes(targetSheet.toLowerCase()));
+  }
+  if(!wsName) wsName=wb.SheetNames[wb.SheetNames.length-1];
+  if(!wsName){resultEl.innerHTML='<div class="upload-result-err">❌ 시트를 찾을 수 없습니다. 시트명을 확인해주세요.<br>사용 가능한 시트: '+wb.SheetNames.join(', ')+'</div>';return;}
+
+  const ws=wb.Sheets[wsName];
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+
+  // HMP별 집계
+  const hmpStats={};
+  for(let r=1;r<rows.length;r++){
+    const row=rows[r];
+    if(!row||!row.some(v=>v!==null)) continue;
+    const product=row[2];const hmpRaw=row[5];
+    if(!product||!hmpRaw) continue;
+    if(String(product).toLowerCase().startsWith('sample')) continue;
+
+    // 이름 파싱: "(1) Fahima Birungi" → batch=1, name="Fahima Birungi"
+    const m=String(hmpRaw).match(/\((\d+)\)\s*(.+)/);
+    if(!m) continue;
+    const batch=parseInt(m[1]);
+    const name=m[2].trim().replace(/\*+$/,'').trim();
+
+    const subRaw=row[3];const qcRaw=row[4];
+    const sub=(subRaw&&subRaw!=='-')?parseInt(subRaw)||0:0;
+    const qc=(qcRaw&&qcRaw!=='-')?parseInt(qcRaw)||0:0;
+
+    if(!hmpStats[name]) hmpStats[name]={batch,submitted:0,qcPass:0,products:[]};
+    hmpStats[name].submitted+=sub;
+    hmpStats[name].qcPass+=qc;
+    hmpStats[name].products.push({product:String(product),submitted:sub,qc_pass:qc});
+  }
+
+  // rate 계산
+  Object.values(hmpStats).forEach(d=>{
+    d.rate=d.submitted>0?Math.round(d.qcPass/d.submitted*1000)/10:null;
+  });
+
+  const count=Object.keys(hmpStats).length;
+  if(!count){resultEl.innerHTML='<div class="upload-result-err">❌ 파싱된 QC 데이터가 없습니다.</div>';return;}
+
+  // QC_DATA_LIVE에 저장 (런타임 전역 변수로 덮어씀)
+  window.QC_DATA_LIVE=hmpStats;
+  window.QC_DATA_ACTIVE=hmpStats;
+  localStorage.setItem('sdc_qc_data',JSON.stringify({data:hmpStats,sheet:wsName,uploadedAt:new Date().toISOString()}));
+
+  // QC 탭 갱신
+  if(document.getElementById('s-qc').classList.contains('active')) renderQCTab();
+
+  const avg=Math.round(Object.values(hmpStats).filter(d=>d.submitted>0).reduce((s,d)=>s+d.rate,0)/Object.values(hmpStats).filter(d=>d.submitted>0).length);
+  resultEl.innerHTML=`<div class="upload-result-ok">✅ [${wsName}] QC 이력 ${count}명 업데이트 완료<br>
+    <span style="font-size:12px">평균 통과율: ${avg}% · 사용 가능한 시트: ${wb.SheetNames.join(', ')}</span></div>`;
+}
+
+// ── INIT ──
+document.addEventListener('click',e=>{if(!e.target.closest('#capable-suggest')&&!e.target.closest('#capable-wrap'))document.getElementById('capable-suggest').innerHTML='';});
+document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
+
+loadData();
+rebuildProductSelect();
+setupHmpFilters();
+renderHMPList();
+renderOrders();
+updateQcSettingDesc();
+// 저장된 설정 복원
+document.getElementById('qc-weight-mode').value=settings.qcWeightMode;
+document.getElementById('qc-unknown-mode').value=settings.qcUnknownMode;
+</script>
+</body>
+</html>
