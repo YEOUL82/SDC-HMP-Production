@@ -173,9 +173,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
         </select>
       </div>
       <div class="fg">
-        <label>QC 기준 월</label>
-        <select id="qc-ref-month" onchange="saveSettings()">
-          <option value="may" selected>2026년 5월</option>
+        <label>최신 월 가중치 감소율</label>
+        <select id="qc-decay" onchange="saveSettings()">
+          <option value="0.9">강하게 (최신 월 90%, 이전 월 81%, 73%...)</option>
+          <option value="0.8" selected>중간 (최신 월 80%, 이전 월 64%, 51%...)</option>
+          <option value="0.7">약하게 (최신 월 70%, 이전 월 49%, 34%...)</option>
         </select>
       </div>
     </div>
@@ -245,9 +247,24 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 
 <!-- QC 이력 -->
 <div id="s-qc" class="sec">
+  <!-- 월별 누적 이력 관리 카드 -->
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-      <span class="ct" style="margin:0">QC 이력 <span id="qc-source-label" style="font-size:12px;color:var(--text2);font-weight:400">— 2026년 5월 (기본 데이터)</span></span>
+      <span class="ct" style="margin:0">📅 QC 누적 이력 관리</span>
+      <span style="font-size:12px;color:var(--text2)">최신 월일수록 배분에 높은 가중치 적용</span>
+    </div>
+    <!-- 업로드된 월 목록 -->
+    <div id="qc-months-list" style="margin-bottom:14px"></div>
+    <!-- 누적 가중평균 미리보기 -->
+    <div id="qc-weighted-preview" style="margin-bottom:8px"></div>
+    <div style="font-size:12px;color:var(--text3)">
+      💡 엑셀 파일을 업로드하면 자동으로 월별 누적 데이터에 추가됩니다. 데이터 업데이트 → QC 이력 탭에서 업로드하세요.
+    </div>
+  </div>
+  <!-- HMP별 누적 QC 현황 -->
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <span class="ct" style="margin:0">HMP별 누적 QC 통과율 <span id="qc-source-label" style="font-size:12px;color:var(--text2);font-weight:400"></span></span>
       <div style="display:flex;gap:6px;align-items:center">
         <span style="font-size:12px;color:var(--text2)">정렬:</span>
         <select id="qc-sort" onchange="renderQCTab()" style="width:auto;font-size:12px;padding:4px 8px">
@@ -448,22 +465,56 @@ const QC_DATA_MAY={"Fahima Birungi":{"batch":1,"submitted":30,"qcPass":22,"rate"
 let PRODUCERS,LABOR_FEE;
 let orders=[],planResult=null,activeBatch=null,activeHmpBatch=null,activeQcBatch=null;
 let capableTags=[],saveTimer=null;
-let settings={qcWeightMode:'soft',qcUnknownMode:'average',qcRefMonth:'may'};
+let settings={qcWeightMode:'soft',qcUnknownMode:'average',qcDecay:0.8};
+
+// ── QC 누적 가중평균 계산 ──
+// QC_HISTORY: [{sheet, label, uploadedAt, data}, ...] 최신순
+// decay: 0.8이면 최신=1.0, 이전=0.8, 그 이전=0.64, ...
+function computeWeightedQC(){
+  const history=window.QC_HISTORY||[];
+  const decay=settings.qcDecay||0.8;
+  // 최신순 정렬 (uploadedAt 기준)
+  const sorted=[...history].sort((a,b)=>new Date(b.uploadedAt)-new Date(a.uploadedAt));
+  // HMP별 가중합 계산
+  const weightedMap={}; // {qcName: {weightedRate, totalWeight, months:[{label,rate,weight}]}}
+  sorted.forEach((month,idx)=>{
+    const w=Math.pow(decay,idx); // 최신=1, 이전=decay, 그 이전=decay^2, ...
+    Object.entries(month.data||{}).forEach(([name,d])=>{
+      if(!weightedMap[name]) weightedMap[name]={weightedSum:0,totalWeight:0,months:[]};
+      const rate=d.rate;
+      if(rate!==null&&rate!==undefined){
+        weightedMap[name].weightedSum+=rate*w;
+        weightedMap[name].totalWeight+=w;
+        weightedMap[name].months.push({label:month.label||month.sheet,rate,weight:Math.round(w*100)});
+      }
+    });
+  });
+  // 최종 가중평균 rate 계산
+  const result={};
+  Object.entries(weightedMap).forEach(([name,d])=>{
+    result[name]={
+      rate:d.totalWeight>0?Math.round(d.weightedSum/d.totalWeight*10)/10:null,
+      months:d.months,
+      batch:(history[0]?.data[name]?.batch)||(history.find(h=>h.data[name])?.data[name]?.batch)||null
+    };
+  });
+  window.QC_WEIGHTED=result;
+  return result;
+}
 
 // ── 이름 매핑 (QC 이름 → PRODUCERS 이름) ──
-// QC 데이터의 이름과 PRODUCERS 이름을 퍼지 매칭
 function buildQcNameMap(){
   const map={};
-  Object.keys(window.QC_DATA_ACTIVE||QC_DATA_MAY).forEach(qcName=>{
+  const qcNames=Object.keys(window.QC_WEIGHTED||{});
+  qcNames.forEach(qcName=>{
     const qcLower=qcName.toLowerCase();
-    // 1. 정확히 이름의 토큰이 겹치는지 확인
     let best=null,bestScore=0;
     PRODUCERS.forEach(p=>{
       const pLower=p.name.toLowerCase();
       const qcTokens=qcLower.split(/\s+/);
       const pTokens=pLower.split(/\s+/);
       const matches=qcTokens.filter(t=>pTokens.some(pt=>pt.includes(t)||t.includes(pt))).length;
-      const score=matches/(Math.max(qcTokens.length,pTokens.length));
+      const score=matches/Math.max(qcTokens.length,pTokens.length);
       if(score>bestScore&&score>0.4){bestScore=score;best=p.name;}
     });
     if(best) map[qcName]=best;
@@ -471,15 +522,20 @@ function buildQcNameMap(){
   return map;
 }
 
-// QC rate 가져오기 (PRODUCERS 이름으로)
+// 가중평균 QC rate 반환 (PRODUCERS 이름으로)
 function getQcRate(producerName){
   const map=buildQcNameMap();
-  // 역방향 찾기: producerName에 해당하는 qcName
   const qcEntry=Object.entries(map).find(([,v])=>v===producerName);
   if(!qcEntry) return null;
-  const qcData=(window.QC_DATA_ACTIVE||QC_DATA_MAY)[qcEntry[0]];
-  if(!qcData) return null;
-  return qcData.rate;
+  return window.QC_WEIGHTED?.[qcEntry[0]]?.rate??null;
+}
+
+// 월별 상세 이력 반환
+function getQcMonthDetail(producerName){
+  const map=buildQcNameMap();
+  const qcEntry=Object.entries(map).find(([,v])=>v===producerName);
+  if(!qcEntry) return [];
+  return window.QC_WEIGHTED?.[qcEntry[0]]?.months||[];
 }
 
 // QC 가중치 계산 (0.4~1.6 범위)
@@ -534,12 +590,17 @@ function loadData(){
   catch(e){PRODUCERS=JSON.parse(JSON.stringify(DEFAULT_PRODUCERS));LABOR_FEE=JSON.parse(JSON.stringify(DEFAULT_LABOR));}
   try{const o=localStorage.getItem('sdc_orders');if(o)orders=JSON.parse(o);}catch(e){}
   try{const s=localStorage.getItem('sdc_settings');if(s)settings={...settings,...JSON.parse(s)};}catch(e){}
-  // QC 데이터: 업로드된 것 있으면 우선 사용
+  // QC 누적 이력 로드: [{sheet, uploadedAt, data}, ...] 최신순 정렬
   try{
-    const q=localStorage.getItem('sdc_qc_data');
-    if(q){const d=JSON.parse(q);window.QC_DATA_ACTIVE=d.data;window.QC_DATA_LIVE=d.data;}
-    else{window.QC_DATA_ACTIVE=QC_DATA_MAY;}
-  }catch(e){window.QC_DATA_ACTIVE=QC_DATA_MAY;}
+    const q=localStorage.getItem('sdc_qc_history');
+    if(q){window.QC_HISTORY=JSON.parse(q);}
+    else{
+      // 기본 5월 데이터를 초기 이력으로 세팅
+      window.QC_HISTORY=[{sheet:'May',label:'2026년 5월',uploadedAt:'2026-05-31T00:00:00.000Z',data:QC_DATA_MAY}];
+    }
+  }catch(e){window.QC_HISTORY=[{sheet:'May',label:'2026년 5월',uploadedAt:'2026-05-31T00:00:00.000Z',data:QC_DATA_MAY}];}
+  // 가중평균 QC 계산
+  computeWeightedQC();
 }
 function saveData(){
   localStorage.setItem('sdc_hmp_data',JSON.stringify({producers:PRODUCERS,laborFee:LABOR_FEE,lastModified:new Date().toISOString()}));
@@ -550,14 +611,18 @@ function saveOrders(){localStorage.setItem('sdc_orders',JSON.stringify(orders));
 function saveSettings(){
   settings.qcWeightMode=document.getElementById('qc-weight-mode').value;
   settings.qcUnknownMode=document.getElementById('qc-unknown-mode').value;
-  settings.qcRefMonth=document.getElementById('qc-ref-month').value;
+  settings.qcDecay=parseFloat(document.getElementById('qc-decay').value)||0.8;
   localStorage.setItem('sdc_settings',JSON.stringify(settings));
+  computeWeightedQC();
   updateQcSettingDesc();
 }
 function updateQcSettingDesc(){
   const mode=settings.qcWeightMode;
-  const desc={none:'QC 이력을 무시하고 모든 HMP에 동일하게 배분합니다.',soft:'QC 통과율에 따라 최대 ±20% 범위에서 배분량을 조정합니다.',medium:'QC 통과율에 따라 최대 ±40% 범위에서 배분량을 조정합니다.',strong:'QC 통과율에 따라 최대 ±60% 범위에서 배분량을 강하게 조정합니다.'};
-  document.getElementById('qc-setting-desc').textContent=desc[mode]||'';
+  const decay=settings.qcDecay||0.8;
+  const months=(window.QC_HISTORY||[]).length;
+  const desc={none:'QC 이력을 무시하고 모든 HMP에 동일하게 배분합니다.',soft:'QC 누적 통과율에 따라 최대 ±20% 범위에서 배분량을 조정합니다.',medium:'QC 누적 통과율에 따라 최대 ±40% 범위에서 배분량을 조정합니다.',strong:'QC 누적 통과율에 따라 최대 ±60% 범위에서 배분량을 강하게 조정합니다.'};
+  const decayDesc=months>1?` 누적 ${months}개월, 최신 월 가중치 ${Math.round(decay*100)}%씩 감소 적용.`:'';
+  document.getElementById('qc-setting-desc').textContent=(desc[mode]||'')+decayDesc;
 }
 function exportData(){
   const d={producers:PRODUCERS,laborFee:LABOR_FEE,exportedAt:new Date().toISOString()};
@@ -800,36 +865,78 @@ function exportCSV(){
 
 // ── QC 탭 ──
 function renderQCTab(){
-  // 업로드된 QC 데이터면 출처 표시 업데이트
-  try{
-    const saved=localStorage.getItem('sdc_qc_data');
-    const lbl=document.getElementById('qc-source-label');
-    if(lbl){
-      if(saved){const d=JSON.parse(saved);lbl.textContent=`— ${d.sheet} 시트 (${new Date(d.uploadedAt).toLocaleDateString('ko-KR')} 업로드)`;}
-      else{lbl.textContent='— 2026년 5월 (기본 데이터)';}
-    }
-  }catch(e){}
-  // 요약
-  const all=Object.values(window.QC_DATA_ACTIVE||QC_DATA_MAY);
-  const withRate=all.filter(d=>d.submitted>0);
-  const avg=withRate.length?Math.round(withRate.reduce((s,d)=>s+d.rate,0)/withRate.length):0;
-  const hi=withRate.filter(d=>d.rate>=80).length;
-  const mid=withRate.filter(d=>d.rate>=50&&d.rate<80).length;
-  const lo=withRate.filter(d=>d.rate<50).length;
+  const history=window.QC_HISTORY||[];
+  const weighted=window.QC_WEIGHTED||{};
+  const decay=settings.qcDecay||0.8;
+
+  // 소스 레이블 업데이트
+  const lbl=document.getElementById('qc-source-label');
+  if(lbl) lbl.textContent=history.length>1?`— ${history.length}개월 누적 가중평균`:`— ${history[0]?.label||'기본 데이터'}`;
+
+  // ── 월별 이력 관리 카드 ──
+  const sorted=[...history].sort((a,b)=>new Date(b.uploadedAt)-new Date(a.uploadedAt));
+  document.getElementById('qc-months-list').innerHTML=sorted.length
+    ?`<div style="display:flex;flex-direction:column;gap:6px">`+
+      sorted.map((m,idx)=>{
+        const w=Math.pow(decay,idx);
+        const count=Object.keys(m.data||{}).length;
+        const avg=Math.round(Object.values(m.data||{}).filter(d=>d.submitted>0).reduce((s,d)=>s+d.rate,0)/Math.max(1,Object.values(m.data||{}).filter(d=>d.submitted>0).length));
+        const uploadDate=new Date(m.uploadedAt).toLocaleDateString('ko-KR');
+        return`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border-radius:var(--radius);font-size:13px">
+          <span class="bdg" style="background:${idx===0?'var(--accent)':'var(--border2)'};color:${idx===0?'#fff':'var(--text2)'};min-width:52px;text-align:center">${idx===0?'최신':'이전 '+idx}</span>
+          <span style="font-weight:500;min-width:80px">${m.label||m.sheet}</span>
+          <span style="color:var(--text2);font-size:12px">${count}명 · 평균 ${avg}%</span>
+          <div style="flex:1;display:flex;align-items:center;gap:6px">
+            <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${Math.round(w*100)}%;background:var(--accent);border-radius:3px"></div>
+            </div>
+            <span style="font-size:12px;color:var(--accent);font-weight:500;min-width:36px">가중 ${Math.round(w*100)}%</span>
+          </div>
+          <span style="font-size:11px;color:var(--text3)">${uploadDate}</span>
+          <button class="btn btn-sm btn-d" onclick="removeQcMonth('${m.sheet}')" style="padding:2px 8px">삭제</button>
+        </div>`;
+      }).join('')+`</div>`
+    :'<div class="empty">QC 이력 없음. 데이터 업데이트에서 엑셀 파일을 업로드하세요.</div>';
+
+  // ── 가중치 미리보기 ──
+  document.getElementById('qc-weighted-preview').innerHTML=history.length>1
+    ?`<div style="font-size:12px;padding:8px 12px;background:#EAF3EE;border-radius:var(--radius);color:var(--accent)">
+        ✅ ${history.length}개월 누적 반영 중 — 감소율 ${Math.round(decay*100)}%/월. 
+        HMP별 가중평균 = (최신×1.0 + 이전×${decay} + 그 이전×${Math.round(decay**2*100)/100} + ...) ÷ 가중치합
+      </div>`:'';
+
+  // ── 요약 통계 (가중평균 기준) ──
+  const weightedRates=Object.values(weighted).filter(d=>d.rate!==null).map(d=>d.rate);
+  const avg2=weightedRates.length?Math.round(weightedRates.reduce((a,b)=>a+b)/weightedRates.length):0;
+  const hi=weightedRates.filter(r=>r>=80).length;
+  const mid=weightedRates.filter(r=>r>=50&&r<80).length;
+  const lo=weightedRates.filter(r=>r<50).length;
   document.getElementById('qc-summary-grid').innerHTML=`
-    <div class="smc"><div class="lbl">참여 HMP</div><div class="val">${all.length}명</div></div>
-    <div class="smc"><div class="lbl">평균 QC 통과율</div><div class="val">${avg}%</div></div>
+    <div class="smc"><div class="lbl">QC 데이터 보유 HMP</div><div class="val">${weightedRates.length}명</div></div>
+    <div class="smc"><div class="lbl">누적 가중평균 QC율</div><div class="val">${avg2}%</div></div>
     <div class="smc"><div class="lbl">우수 (80%↑) / 양호 (50%↑)</div><div class="val">${hi}명 / ${mid}명</div></div>
     <div class="smc"><div class="lbl">주의 필요 (50%↓)</div><div class="val" style="color:var(--red)">${lo}명</div></div>`;
-  // 기수 필터
+
+  // 기수 필터 초기화 (처음 한 번만)
   if(!document.getElementById('qc-batch-filter').querySelector('.chip')){
-    const batches=[...new Set(all.map(d=>d.batch))].sort();
+    const batches=[...new Set(Object.values(weighted).map(d=>d.batch).filter(Boolean))].sort();
     document.getElementById('qc-batch-filter').innerHTML='<span style="font-size:12px;color:var(--text2);font-weight:500">기수:</span>'+
       ['전체',...batches].map((v,i)=>`<button class="chip ${i===0?'on':''}" onclick="filterQcBatch(${v==='전체'?'null':v},this)">${v==='전체'?'전체':v+'기'}</button>`).join('');
   }
   renderQCList();
   renderQCDistChart();
 }
+
+window.removeQcMonth=function(sheet){
+  if(!confirm(`[${sheet}] 데이터를 삭제하시겠습니까?`)) return;
+  window.QC_HISTORY=(window.QC_HISTORY||[]).filter(h=>h.sheet!==sheet);
+  localStorage.setItem('sdc_qc_history',JSON.stringify(window.QC_HISTORY));
+  computeWeightedQC();
+  // 기수 필터 리셋
+  document.getElementById('qc-batch-filter').innerHTML='<span style="font-size:12px;color:var(--text2);font-weight:500">기수:</span>';
+  activeQcBatch=null;
+  renderQCTab();
+};
 
 function filterQcBatch(b,el){
   activeQcBatch=b;
@@ -839,50 +946,66 @@ function filterQcBatch(b,el){
 
 function renderQCList(){
   const sort=document.getElementById('qc-sort')?.value||'batch';
-  let entries=Object.entries(window.QC_DATA_ACTIVE||QC_DATA_MAY).filter(([,d])=>activeQcBatch===null||d.batch===activeQcBatch);
+  const weighted=window.QC_WEIGHTED||{};
+  let entries=Object.entries(weighted).filter(([,d])=>activeQcBatch===null||d.batch===activeQcBatch);
   entries.sort((a,b)=>{
-    if(sort==='batch') return a[1].batch-b[1].batch||a[0].localeCompare(b[0]);
+    if(sort==='batch') return (a[1].batch||9)-(b[1].batch||9)||a[0].localeCompare(b[0]);
     if(sort==='rate-hi') return (b[1].rate||0)-(a[1].rate||0);
     if(sort==='rate-lo') return (a[1].rate||0)-(b[1].rate||0);
-    if(sort==='qty') return b[1].submitted-a[1].submitted;
+    if(sort==='qty') return (b[1].months?.reduce((s,m)=>s+(m.qty||0),0)||0)-(a[1].months?.reduce((s,m)=>s+(m.qty||0),0)||0);
     return 0;
   });
+  const history=window.QC_HISTORY||[];
   document.getElementById('qc-list').innerHTML=entries.map(([name,d])=>{
     const rate=d.rate;
     const barColor=qcRateColor(rate);
     const pcts=Math.min(100,Math.round(rate||0));
-    const prodRows=d.products.map(p=>`
-      <div style="display:grid;grid-template-columns:1fr 60px 60px 50px;gap:6px;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">
-        <span style="color:var(--text2)">${p.product}</span>
-        <span style="text-align:right;color:var(--text2)">${p.submitted>0?p.submitted+'pcs':'-'}</span>
-        <span style="text-align:right;font-weight:500">${p.qc_pass}pcs</span>
-        <span style="text-align:right;color:${p.submitted>0?qcRateColor(Math.round(p.qc_pass/p.submitted*100)):'var(--text3)'};font-size:11px">${p.submitted>0?Math.round(p.qc_pass/p.submitted*100)+'%':'-'}</span>
-      </div>`).join('');
+    // 월별 상세 행
+    const monthRows=d.months.map((m,idx)=>{
+      const decay=settings.qcDecay||0.8;
+      const sortedHistory=[...history].sort((a,b)=>new Date(b.uploadedAt)-new Date(a.uploadedAt));
+      const hIdx=sortedHistory.findIndex(h=>h.label===m.label||h.sheet===m.label);
+      const w=hIdx>=0?Math.pow(decay,hIdx):m.weight/100;
+      return`<div style="display:grid;grid-template-columns:80px 60px 1fr 50px;gap:6px;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text2)">${m.label}</span>
+        <span style="text-align:right;font-weight:500">${m.rate}%</span>
+        <div style="display:flex;align-items:center;gap:4px">
+          <div style="flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+            <div style="height:100%;width:${Math.min(100,m.rate||0)}%;background:${qcRateColor(m.rate)};border-radius:2px"></div>
+          </div>
+        </div>
+        <span style="text-align:right;color:var(--accent);font-size:11px">×${Math.round(w*100)/100}</span>
+      </div>`;
+    }).join('');
+    const isMultiMonth=d.months.length>1;
     return`<div class="qc-card">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <span class="bdg ${bCls(d.batch)}">${d.batch}기</span>
-        <span style="font-weight:600;font-size:13px">${name}</span>
-        <div class="qc-bar-wrap" style="flex:1">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${isMultiMonth?'8px':'0'}">
+        <span class="bdg ${bCls(d.batch||1)}">${d.batch||'?'}기</span>
+        <span style="font-weight:600;font-size:13px;flex:1">${name}</span>
+        <div class="qc-bar-wrap" style="flex:2">
           <div class="qc-bar-bg"><div class="qc-bar-fill" style="width:${pcts}%;background:${barColor}"></div></div>
           <span class="qc-rate-badge" style="color:${barColor}">${rate!==null?rate+'%':'N/A'}</span>
         </div>
-        <span style="font-size:12px;color:var(--text2)">${d.submitted}제출 / ${d.qcPass}통과</span>
+        ${isMultiMonth?`<span style="font-size:11px;color:var(--text2)">${d.months.length}개월 누적</span>`:''}
       </div>
-      <div style="padding:0 4px">
-        <div style="display:grid;grid-template-columns:1fr 60px 60px 50px;gap:6px;font-size:11px;color:var(--text3);padding:2px 0;border-bottom:1px solid var(--border);margin-bottom:2px">
-          <span>품목</span><span style="text-align:right">제출</span><span style="text-align:right">QC통과</span><span style="text-align:right">통과율</span>
+      ${isMultiMonth?`<div style="padding:0 4px">
+        <div style="display:grid;grid-template-columns:80px 60px 1fr 50px;gap:6px;font-size:11px;color:var(--text3);padding:2px 0;border-bottom:1px solid var(--border);margin-bottom:2px">
+          <span>월</span><span style="text-align:right">통과율</span><span>바</span><span style="text-align:right">가중치</span>
         </div>
-        ${prodRows}
-      </div>
+        ${monthRows}
+        <div style="text-align:right;font-size:12px;font-weight:600;color:${barColor};padding-top:4px">가중평균: ${rate}%</div>
+      </div>`:''}
     </div>`;
   }).join('');
 }
 
 function renderQCDistChart(){
-  const all=Object.values(window.QC_DATA_ACTIVE||QC_DATA_MAY).filter(d=>d.submitted>0);
+  const weighted=window.QC_WEIGHTED||{};
+  const all=Object.values(weighted).filter(d=>d.rate!==null);
   const buckets=[{label:'0%',min:0,max:1,col:'#C62828'},{label:'1~20%',min:1,max:20,col:'#E53935'},{label:'21~50%',min:20,max:50,col:'#FB8C00'},{label:'51~80%',min:50,max:80,col:'#43A047'},{label:'81~100%',min:80,max:101,col:'#1B5E20'}];
   const counts=buckets.map(b=>({...b,count:all.filter(d=>d.rate>=b.min&&d.rate<b.max).length}));
   const maxC=Math.max(...counts.map(b=>b.count),1);
+  const months=(window.QC_HISTORY||[]).length;
   document.getElementById('qc-dist-chart').innerHTML=`
     <div style="display:flex;gap:12px;align-items:flex-end;height:120px;padding:0 8px;margin-bottom:8px">
       ${counts.map(b=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
@@ -893,7 +1016,7 @@ function renderQCDistChart(){
     <div style="display:flex;gap:12px;padding:0 8px">
       ${counts.map(b=>`<div style="flex:1;text-align:center;font-size:11px;color:var(--text2)">${b.label}</div>`).join('')}
     </div>
-    <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center">5월 QC 통과율 분포 (${all.length}명 기준)</div>`;
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center">누적 가중평균 QC 통과율 분포 (${all.length}명, ${months}개월 기준)</div>`;
 }
 
 // ── HMP 현황 ──
@@ -993,7 +1116,7 @@ function renderDataStats(){
   document.getElementById('data-stats').innerHTML=`
     <div class="smc"><div class="lbl">전체 HMP</div><div class="val">${PRODUCERS.length}명</div></div>
     <div class="smc"><div class="lbl">생산 가능 HMP</div><div class="val">${activeHMP}명</div></div>
-    <div class="smc"><div class="lbl">QC 이력 보유</div><div class="val">${Object.keys(window.QC_DATA_ACTIVE||QC_DATA_MAY).length}명</div></div>
+    <div class="smc"><div class="lbl">QC 누적 이력</div><div class="val">${(window.QC_HISTORY||[]).length}개월</div></div>
     <div class="smc"><div class="lbl">등록 제품 수</div><div class="val">${Object.keys(LABOR_FEE).length}개</div></div>`;
   try{const d=JSON.parse(localStorage.getItem('sdc_hmp_data')||'{}');document.getElementById('last-modified').textContent=d.lastModified?new Date(d.lastModified).toLocaleString('ko-KR'):'없음';}catch(e){}
 }
@@ -1123,44 +1246,35 @@ function parseLaborExcel(wb,resultEl){
 // 구조: Y/M/Product name/Submitted Qty/QC pass QTY/HMP/NOTE
 function parseQCExcel(wb,resultEl){
   const targetSheet=document.getElementById('qc-sheet-name').value.trim();
-  // 시트 찾기: 입력값 우선, 없으면 마지막 시트
   let wsName=null;
   if(targetSheet){
     wsName=wb.SheetNames.find(n=>n.toLowerCase()===targetSheet.toLowerCase())||
            wb.SheetNames.find(n=>n.toLowerCase().includes(targetSheet.toLowerCase()));
   }
   if(!wsName) wsName=wb.SheetNames[wb.SheetNames.length-1];
-  if(!wsName){resultEl.innerHTML='<div class="upload-result-err">❌ 시트를 찾을 수 없습니다. 시트명을 확인해주세요.<br>사용 가능한 시트: '+wb.SheetNames.join(', ')+'</div>';return;}
+  if(!wsName){resultEl.innerHTML='<div class="upload-result-err">❌ 시트를 찾을 수 없습니다.<br>사용 가능한 시트: '+wb.SheetNames.join(', ')+'</div>';return;}
 
   const ws=wb.Sheets[wsName];
   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
-
-  // HMP별 집계
   const hmpStats={};
+
   for(let r=1;r<rows.length;r++){
     const row=rows[r];
     if(!row||!row.some(v=>v!==null)) continue;
     const product=row[2];const hmpRaw=row[5];
     if(!product||!hmpRaw) continue;
     if(String(product).toLowerCase().startsWith('sample')) continue;
-
-    // 이름 파싱: "(1) Fahima Birungi" → batch=1, name="Fahima Birungi"
     const m=String(hmpRaw).match(/\((\d+)\)\s*(.+)/);
     if(!m) continue;
     const batch=parseInt(m[1]);
     const name=m[2].trim().replace(/\*+$/,'').trim();
-
-    const subRaw=row[3];const qcRaw=row[4];
-    const sub=(subRaw&&subRaw!=='-')?parseInt(subRaw)||0:0;
-    const qc=(qcRaw&&qcRaw!=='-')?parseInt(qcRaw)||0:0;
-
+    const sub=(row[3]&&row[3]!=='-')?parseInt(row[3])||0:0;
+    const qc=(row[4]&&row[4]!=='-')?parseInt(row[4])||0:0;
     if(!hmpStats[name]) hmpStats[name]={batch,submitted:0,qcPass:0,products:[]};
     hmpStats[name].submitted+=sub;
     hmpStats[name].qcPass+=qc;
     hmpStats[name].products.push({product:String(product),submitted:sub,qc_pass:qc});
   }
-
-  // rate 계산
   Object.values(hmpStats).forEach(d=>{
     d.rate=d.submitted>0?Math.round(d.qcPass/d.submitted*1000)/10:null;
   });
@@ -1168,17 +1282,26 @@ function parseQCExcel(wb,resultEl){
   const count=Object.keys(hmpStats).length;
   if(!count){resultEl.innerHTML='<div class="upload-result-err">❌ 파싱된 QC 데이터가 없습니다.</div>';return;}
 
-  // QC_DATA_LIVE에 저장 (런타임 전역 변수로 덮어씀)
-  window.QC_DATA_LIVE=hmpStats;
-  window.QC_DATA_ACTIVE=hmpStats;
-  localStorage.setItem('sdc_qc_data',JSON.stringify({data:hmpStats,sheet:wsName,uploadedAt:new Date().toISOString()}));
+  // 같은 시트명이 이미 있으면 교체, 없으면 추가
+  const history=window.QC_HISTORY||[];
+  const existIdx=history.findIndex(h=>h.sheet.toLowerCase()===wsName.toLowerCase());
+  const entry={sheet:wsName,label:wsName,uploadedAt:new Date().toISOString(),data:hmpStats};
+  if(existIdx>=0){history[existIdx]=entry;}
+  else{history.push(entry);}
+  window.QC_HISTORY=history;
 
-  // QC 탭 갱신
+  // localStorage에 저장
+  localStorage.setItem('sdc_qc_history',JSON.stringify(history));
+
+  // 가중평균 재계산
+  computeWeightedQC();
+
   if(document.getElementById('s-qc').classList.contains('active')) renderQCTab();
 
+  const monthCount=history.length;
   const avg=Math.round(Object.values(hmpStats).filter(d=>d.submitted>0).reduce((s,d)=>s+d.rate,0)/Object.values(hmpStats).filter(d=>d.submitted>0).length);
-  resultEl.innerHTML=`<div class="upload-result-ok">✅ [${wsName}] QC 이력 ${count}명 업데이트 완료<br>
-    <span style="font-size:12px">평균 통과율: ${avg}% · 사용 가능한 시트: ${wb.SheetNames.join(', ')}</span></div>`;
+  resultEl.innerHTML=`<div class="upload-result-ok">✅ [${wsName}] QC 이력 ${count}명 업로드 완료 — 누적 ${monthCount}개월 데이터 반영<br>
+    <span style="font-size:12px">이번 월 평균 통과율: ${avg}% · 사용 가능한 시트: ${wb.SheetNames.join(', ')}</span></div>`;
 }
 
 // ── INIT ──
@@ -1194,6 +1317,7 @@ updateQcSettingDesc();
 // 저장된 설정 복원
 document.getElementById('qc-weight-mode').value=settings.qcWeightMode;
 document.getElementById('qc-unknown-mode').value=settings.qcUnknownMode;
+document.getElementById('qc-decay').value=settings.qcDecay||0.8;
 </script>
 </body>
 </html>
