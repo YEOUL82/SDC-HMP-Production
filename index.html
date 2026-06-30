@@ -142,29 +142,32 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 </head>
 <body>
 <div class="shell">
-<div class="page-hdr">
-  <h1>SDC <span>×</span> HMP 생산 계획 시스템</h1>
-  <p>생산 역량 · QC 이력 기반 균등 노동비 배분 자동화</p>
+<div class="page-hdr" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+  <div>
+    <h1>SDC <span>×</span> HMP <span data-i18n="title_suffix">생산 계획 시스템</span></h1>
+    <p data-i18n="subtitle">생산 역량 · QC 이력 기반 균등 노동비 배분 자동화</p>
+  </div>
+  <button class="btn btn-sm" onclick="toggleLang()" id="lang-toggle-btn" style="white-space:nowrap;margin-top:2px">🌐 EN</button>
 </div>
 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
   <div class="tabs">
-    <button class="tab active" onclick="go('order')">📋 주문 입력</button>
-    <button class="tab" onclick="go('plan')">📊 생산 계획</button>
-    <button class="tab" onclick="go('qc')">✅ QC 이력</button>
-    <button class="tab" onclick="go('hmp')">👥 HMP 현황</button>
-    <button class="tab" onclick="go('manage')">⚙️ 데이터 관리</button>
+    <button class="tab active" onclick="go('order')" data-i18n="tab_order">📋 주문 입력</button>
+    <button class="tab" onclick="go('plan')" data-i18n="tab_plan">📊 생산 계획</button>
+    <button class="tab" onclick="go('qc')" data-i18n="tab_qc">✅ QC 이력</button>
+    <button class="tab" onclick="go('hmp')" data-i18n="tab_hmp">👥 HMP 현황</button>
+    <button class="tab" onclick="go('manage')" data-i18n="tab_manage">⚙️ 데이터 관리</button>
   </div>
   <div style="display:flex;align-items:center;gap:7px">
-    <span id="save-ind" class="save-ind">✓ 저장됨</span>
-    <button class="btn btn-sm" onclick="exportData()">💾 백업</button>
-    <button class="btn btn-sm btn-p" onclick="document.getElementById('upload-modal').classList.add('open')">📥 데이터 업데이트</button>
+    <span id="save-ind" class="save-ind" data-i18n="saved">✓ 저장됨</span>
+    <button class="btn btn-sm" onclick="exportData()" data-i18n="backup_btn">💾 백업</button>
+    <button class="btn btn-sm btn-p" onclick="document.getElementById('upload-modal').classList.add('open')" data-i18n="update_btn">📥 데이터 업데이트</button>
   </div>
 </div>
 
 <!-- 주문 입력 -->
 <div id="s-order" class="sec active">
   <div class="month-row">
-    <label>대상 월</label>
+    <label data-i18n="target_month">대상 월</label>
     <select id="sel-month" style="width:auto" onchange="saveOrders()">
       <option>2026년 6월</option><option>2026년 7월</option><option>2026년 8월</option>
       <option>2026년 9월</option><option>2026년 10월</option><option>2026년 11월</option><option>2026년 12월</option>
@@ -173,31 +176,31 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 
   <!-- QC 가중치 설정 -->
   <div class="card" style="border-left:3px solid var(--accent)">
-    <div class="ct" style="margin-bottom:8px">⚙️ QC 기반 배분 설정</div>
+    <div class="ct" style="margin-bottom:8px" data-i18n="qc_settings_title">⚙️ QC 기반 배분 설정</div>
     <div class="row3">
       <div class="fg">
-        <label>QC 반영 강도</label>
+        <label data-i18n="qc_weight_mode_label">QC 반영 강도</label>
         <select id="qc-weight-mode" onchange="saveSettings()">
-          <option value="none">반영 안 함 (균등 배분)</option>
-          <option value="soft" selected>약하게 반영 (±20%)</option>
-          <option value="medium">중간 반영 (±40%)</option>
-          <option value="strong">강하게 반영 (±60%)</option>
+          <option value="none" data-i18n="qc_mode_none">반영 안 함 (균등 배분)</option>
+          <option value="soft" selected data-i18n="qc_mode_soft">약하게 반영 (±20%)</option>
+          <option value="medium" data-i18n="qc_mode_medium">중간 반영 (±40%)</option>
+          <option value="strong" data-i18n="qc_mode_strong">강하게 반영 (±60%)</option>
         </select>
       </div>
       <div class="fg">
-        <label>QC 데이터 없는 HMP</label>
+        <label data-i18n="qc_unknown_label">QC 데이터 없는 HMP</label>
         <select id="qc-unknown-mode" onchange="saveSettings()">
-          <option value="average" selected>평균으로 처리</option>
-          <option value="full">100%로 처리 (신규 우대)</option>
-          <option value="low">낮게 처리 (미참여 패널티)</option>
+          <option value="average" selected data-i18n="qc_unknown_avg">평균으로 처리</option>
+          <option value="full" data-i18n="qc_unknown_full">100%로 처리 (신규 우대)</option>
+          <option value="low" data-i18n="qc_unknown_low">낮게 처리 (미참여 패널티)</option>
         </select>
       </div>
       <div class="fg">
-        <label>최신 월 가중치 감소율</label>
+        <label data-i18n="qc_decay_label">최신 월 가중치 감소율</label>
         <select id="qc-decay" onchange="saveSettings()">
-          <option value="0.9">강하게 (최신 월 90%, 이전 월 81%, 73%...)</option>
-          <option value="0.8" selected>중간 (최신 월 80%, 이전 월 64%, 51%...)</option>
-          <option value="0.7">약하게 (최신 월 70%, 이전 월 49%, 34%...)</option>
+          <option value="0.9" data-i18n="qc_decay_strong">강하게 (최신 월 90%, 이전 월 81%, 73%...)</option>
+          <option value="0.8" selected data-i18n="qc_decay_medium">중간 (최신 월 80%, 이전 월 64%, 51%...)</option>
+          <option value="0.7" data-i18n="qc_decay_soft">약하게 (최신 월 70%, 이전 월 49%, 34%...)</option>
         </select>
       </div>
     </div>
@@ -205,44 +208,44 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
   </div>
 
   <div class="card">
-    <div class="ct">주문 추가</div>
+    <div class="ct" data-i18n="add_order_title">주문 추가</div>
     <div class="row2">
-      <div class="fg"><label>제품명</label>
-        <select id="inp-prod" onchange="onProdChange()"><option value="">-- 제품 선택 --</option></select>
+      <div class="fg"><label data-i18n="product_label">제품명</label>
+        <select id="inp-prod" onchange="onProdChange()"><option value="" data-i18n="select_product">-- 제품 선택 --</option></select>
       </div>
-      <div class="fg"><label>수량 (pcs)</label><input type="number" id="inp-qty" min="1" placeholder="예: 200"></div>
+      <div class="fg"><label data-i18n="qty_label">수량 (pcs)</label><input type="number" id="inp-qty" min="1" placeholder="200" data-i18n-placeholder="qty_placeholder"></div>
     </div>
     <div class="row2">
-      <div class="fg"><label>단가 노동비 (UGX/pcs)</label><input type="number" id="inp-fee" placeholder="자동 입력"></div>
-      <div class="fg"><label>비고</label><input type="text" id="inp-note" placeholder="예: Use Offcut"></div>
+      <div class="fg"><label data-i18n="fee_label">단가 노동비 (UGX/pcs)</label><input type="number" id="inp-fee" placeholder="자동 입력" data-i18n-placeholder="fee_placeholder"></div>
+      <div class="fg"><label data-i18n="note_label">비고</label><input type="text" id="inp-note" placeholder="예: Use Offcut" data-i18n-placeholder="note_placeholder"></div>
     </div>
     <div class="elig-info" id="elig-info"></div>
 
     <!-- 배분 대상 필터 -->
     <div class="filter-panel">
       <div class="fp-title">
-        🎯 배분 대상 설정
-        <span style="font-size:11px;font-weight:400;color:var(--text3)">(설정 안 하면 생산 가능한 전체 HMP에 배분)</span>
+        <span data-i18n="filter_title">🎯 배분 대상 설정</span>
+        <span style="font-size:11px;font-weight:400;color:var(--text3)" data-i18n="filter_hint">(설정 안 하면 생산 가능한 전체 HMP에 배분)</span>
       </div>
       <div class="filter-row">
-        <span class="lbl">기수</span>
+        <span class="lbl" data-i18n="filter_batch">기수</span>
         <div id="fp-batch" style="display:flex;flex-wrap:wrap;gap:5px"></div>
       </div>
       <div class="filter-row">
-        <span class="lbl">구분</span>
+        <span class="lbl" data-i18n="filter_cat">구분</span>
         <div id="fp-cat" style="display:flex;flex-wrap:wrap;gap:5px"></div>
       </div>
       <div class="filter-row" style="align-items:flex-start">
-        <span class="lbl" style="padding-top:4px">개인</span>
+        <span class="lbl" style="padding-top:4px" data-i18n="filter_individual">개인</span>
         <div style="flex:1">
           <button class="btn btn-sm" onclick="toggleIndSelect()" id="ind-toggle-btn" style="font-size:11px;margin-bottom:4px">
-            ▾ 개인 선택 (0명 선택됨)
+            ▾ <span data-i18n="ind_select">개인 선택</span> (<span id="ind-count">0</span><span data-i18n="ind_selected_suffix">명 선택됨</span>)
           </button>
           <div class="ind-select-wrap" id="ind-select-wrap">
             <div style="padding:4px 6px;border-bottom:1px solid var(--border);display:flex;gap:6px;margin-bottom:4px">
-              <button class="btn btn-sm" style="font-size:11px" onclick="selectAllInd(true)">전체 선택</button>
-              <button class="btn btn-sm" style="font-size:11px" onclick="selectAllInd(false)">전체 해제</button>
-              <input type="text" placeholder="이름 검색..." oninput="filterIndList(this.value)" style="flex:1;font-size:11px;padding:2px 6px">
+              <button class="btn btn-sm" style="font-size:11px" onclick="selectAllInd(true)" data-i18n="select_all">전체 선택</button>
+              <button class="btn btn-sm" style="font-size:11px" onclick="selectAllInd(false)" data-i18n="deselect_all">전체 해제</button>
+              <input type="text" placeholder="이름 검색..." oninput="filterIndList(this.value)" style="flex:1;font-size:11px;padding:2px 6px" data-i18n-placeholder="search_name">
             </div>
             <div id="ind-list"></div>
           </div>
@@ -252,46 +255,52 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
     </div>
 
     <div style="display:flex;gap:8px">
-      <button class="btn btn-p" onclick="addOrder()">추가</button>
-      <button class="btn" onclick="loadSample()">샘플 불러오기</button>
+      <button class="btn btn-p" onclick="addOrder()" data-i18n="add_btn">추가</button>
+      <button class="btn" onclick="loadSample()" data-i18n="load_sample_btn">샘플 불러오기</button>
     </div>
   </div>
 
   <div class="card">
+
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <span class="ct" style="margin:0">주문 목록</span>
-      <span id="ocnt" style="font-size:12px;font-weight:500;padding:2px 10px;border-radius:20px;background:var(--surface2);color:var(--text2)">0개 품목</span>
+      <span class="ct" style="margin:0" data-i18n="order_list_title">주문 목록</span>
+      <span id="ocnt" style="font-size:12px;font-weight:500;padding:2px 10px;border-radius:20px;background:var(--surface2);color:var(--text2)">0<span data-i18n="items_suffix">개 품목</span></span>
     </div>
-    <div id="olist"><div class="empty">주문을 추가하거나 샘플을 불러오세요</div></div>
+    <div id="olist"><div class="empty" data-i18n="order_empty">주문을 추가하거나 샘플을 불러오세요</div></div>
     <div class="divider"></div>
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span id="ototal" style="font-size:13px;color:var(--text2);font-weight:500"></span>
-      <button class="btn btn-p" onclick="generate()">▶ 생산 계획 생성</button>
+      <button class="btn btn-p" onclick="generate()"><span data-i18n="generate_btn">▶ 생산 계획 생성</span></button>
     </div>
   </div>
 </div>
 
 <!-- 생산 계획 -->
 <div id="s-plan" class="sec">
-  <div id="plan-empty" class="alert alert-info">주문 탭에서 주문을 입력하고 "생산 계획 생성"을 눌러주세요.</div>
+  <div id="plan-empty" class="alert alert-info" data-i18n="plan_empty_msg">주문 탭에서 주문을 입력하고 "생산 계획 생성"을 눌러주세요.</div>
   <div id="plan-body" style="display:none">
     <div class="smg" id="smg"></div>
     <div id="plan-warns"></div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
-        <span class="ct" style="margin:0">생산자별 노동비 & QC 배분 현황</span>
+        <span class="ct" style="margin:0" data-i18n="fee_chart_title">생산자별 노동비 & QC 배분 현황</span>
         <div class="frow" style="margin:0;gap:4px" id="bf"></div>
       </div>
       <div id="fee-chart"></div>
     </div>
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-        <span class="ct" style="margin:0">품목별 생산 배분 계획</span>
+        <span class="ct" style="margin:0" data-i18n="plan_table_title">품목별 생산 배분 계획</span>
         <button class="btn btn-sm" onclick="exportCSV()">⬇ CSV</button>
       </div>
       <div class="tbl-wrap">
         <table class="tbl">
-          <thead><tr><th>No.</th><th>제품명</th><th>노동비</th><th>총수량</th><th>기수</th><th>구분</th><th>생산자</th><th>QC율</th><th>가중치</th><th>배분수량</th><th>소계</th><th>비고</th></tr></thead>
+          <thead><tr>
+            <th data-i18n="th_no">No.</th><th data-i18n="th_product">제품명</th><th data-i18n="th_fee">노동비</th>
+            <th data-i18n="th_total_qty">총수량</th><th data-i18n="th_batch">기수</th><th data-i18n="th_cat">구분</th>
+            <th data-i18n="th_producer">생산자</th><th data-i18n="th_qc">QC율</th><th data-i18n="th_weight">가중치</th>
+            <th data-i18n="th_assigned">배분수량</th><th data-i18n="th_subtotal">소계</th><th data-i18n="th_note">비고</th>
+          </tr></thead>
           <tbody id="plan-tbody"></tbody>
         </table>
       </div>
@@ -311,30 +320,30 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
     <div id="qc-months-list" style="margin-bottom:14px"></div>
     <!-- 누적 가중평균 미리보기 -->
     <div id="qc-weighted-preview" style="margin-bottom:8px"></div>
-    <div style="font-size:12px;color:var(--text3)">
+    <div style="font-size:12px;color:var(--text3)" data-i18n="qc_upload_hint">
       💡 엑셀 파일을 업로드하면 자동으로 월별 누적 데이터에 추가됩니다. 데이터 업데이트 → QC 이력 탭에서 업로드하세요.
     </div>
   </div>
   <!-- HMP별 누적 QC 현황 -->
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-      <span class="ct" style="margin:0">HMP별 누적 QC 통과율 <span id="qc-source-label" style="font-size:12px;color:var(--text2);font-weight:400"></span></span>
+      <span class="ct" style="margin:0"><span data-i18n="qc_by_hmp_title">HMP별 누적 QC 통과율</span> <span id="qc-source-label" style="font-size:12px;color:var(--text2);font-weight:400"></span></span>
       <div style="display:flex;gap:6px;align-items:center">
-        <span style="font-size:12px;color:var(--text2)">정렬:</span>
+        <span style="font-size:12px;color:var(--text2)" data-i18n="sort_label">정렬:</span>
         <select id="qc-sort" onchange="renderQCTab()" style="width:auto;font-size:12px;padding:4px 8px">
-          <option value="batch">기수순</option>
-          <option value="rate-hi">QC 높은순</option>
-          <option value="rate-lo">QC 낮은순</option>
-          <option value="qty">생산량 많은순</option>
+          <option value="batch" data-i18n="sort_batch">기수순</option>
+          <option value="rate-hi" data-i18n="sort_rate_hi">QC 높은순</option>
+          <option value="rate-lo" data-i18n="sort_rate_lo">QC 낮은순</option>
+          <option value="qty" data-i18n="sort_qty">생산량 많은순</option>
         </select>
       </div>
     </div>
     <div class="smg" id="qc-summary-grid"></div>
-    <div class="frow" id="qc-batch-filter"><span style="font-size:12px;color:var(--text2);font-weight:500">기수:</span></div>
+    <div class="frow" id="qc-batch-filter"><span style="font-size:12px;color:var(--text2);font-weight:500" data-i18n="batch_colon">기수:</span></div>
     <div id="qc-list"></div>
   </div>
   <div class="card">
-    <div class="ct">QC 통과율 분포</div>
+    <div class="ct" data-i18n="qc_dist_title">QC 통과율 분포</div>
     <div id="qc-dist-chart"></div>
   </div>
 </div>
@@ -343,11 +352,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 <div id="s-hmp" class="sec">
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-      <span class="ct" style="margin:0">HMP 생산자 목록</span>
-      <button class="btn btn-sm btn-p" onclick="openAddHmpModal()">+ HMP 추가</button>
+      <span class="ct" style="margin:0" data-i18n="hmp_list_title">HMP 생산자 목록</span>
+      <button class="btn btn-sm btn-p" onclick="openAddHmpModal()" data-i18n="add_hmp_btn">+ HMP 추가</button>
     </div>
-    <div class="frow" id="hmp-filters"><span style="font-size:12px;font-weight:500;color:var(--text2)">기수:</span></div>
-    <div style="margin-bottom:12px"><input type="text" id="hmp-search" placeholder="이름 또는 제품 검색..." oninput="renderHMPList()" style="max-width:300px"></div>
+    <div class="frow" id="hmp-filters"><span style="font-size:12px;font-weight:500;color:var(--text2)" data-i18n="batch_colon">기수:</span></div>
+    <div style="margin-bottom:12px"><input type="text" id="hmp-search" placeholder="이름 또는 제품 검색..." oninput="renderHMPList()" style="max-width:300px" data-i18n-placeholder="hmp_search_placeholder"></div>
     <div id="hmp-list"></div>
   </div>
 </div>
@@ -356,136 +365,140 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 <div id="s-manage" class="sec">
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <span class="ct" style="margin:0">제품 & 노동비 관리</span>
-      <button class="btn btn-sm btn-p" onclick="openAddProductModal()">+ 제품 추가</button>
+      <span class="ct" style="margin:0" data-i18n="product_mgmt_title">제품 & 노동비 관리</span>
+      <button class="btn btn-sm btn-p" onclick="openAddProductModal()" data-i18n="add_product_btn">+ 제품 추가</button>
     </div>
-    <div style="margin-bottom:10px"><input type="text" id="prod-search" placeholder="제품명 검색..." oninput="renderProductList()" style="max-width:260px"></div>
+    <div style="margin-bottom:10px"><input type="text" id="prod-search" placeholder="제품명 검색..." oninput="renderProductList()" style="max-width:260px" data-i18n-placeholder="product_search_placeholder"></div>
     <div class="tbl-wrap">
       <table class="tbl">
-        <thead><tr><th>제품명</th><th>노동비 (UGX)</th><th>생산 가능 HMP</th><th>관리</th></tr></thead>
+        <thead><tr>
+          <th data-i18n="th_product_name">제품명</th><th data-i18n="th_labor_fee">노동비 (UGX)</th>
+          <th data-i18n="th_capable_hmp">생산 가능 HMP</th><th data-i18n="th_manage">관리</th>
+        </tr></thead>
         <tbody id="product-tbody"></tbody>
       </table>
     </div>
   </div>
   <div class="card">
-    <div class="ct">데이터 현황</div>
+    <div class="ct" data-i18n="data_status_title">데이터 현황</div>
     <div class="smg" id="data-stats"></div>
     <div style="font-size:13px;color:var(--text2);line-height:2">
-      마지막 수정: <span id="last-modified" style="color:var(--text);font-weight:500">-</span>
+      <span data-i18n="last_modified">마지막 수정:</span> <span id="last-modified" style="color:var(--text);font-weight:500">-</span>
     </div>
   </div>
 </div>
 
-<div class="footer">SDC × HMP Production Planning System · QC 이력 기반 균등 노동비 배분</div>
+<div class="footer" data-i18n="footer_text">SDC × HMP Production Planning System · QC 이력 기반 균등 노동비 배분</div>
 </div>
 
 <!-- 모달들 -->
 <div class="modal-overlay" id="hmp-modal">
   <div class="modal">
-    <h3 id="hmp-modal-title">HMP 추가</h3>
+    <h3 id="hmp-modal-title" data-i18n="hmp_add_title">HMP 추가</h3>
     <input type="hidden" id="hmp-edit-idx" value="-1">
     <div class="row2">
-      <div class="fg"><label>이름</label><input type="text" id="hmp-name" placeholder="예: JANE DOE"></div>
-      <div class="fg"><label>기수</label>
+      <div class="fg"><label data-i18n="name_label">이름</label><input type="text" id="hmp-name" placeholder="예: JANE DOE"></div>
+      <div class="fg"><label data-i18n="batch_label">기수</label>
         <select id="hmp-batch"><option value="1">1기</option><option value="2">2기</option><option value="3">3기</option><option value="4">4기</option><option value="5">5기</option><option value="6">6기</option><option value="7">7기</option><option value="8">8기</option></select>
       </div>
+
     </div>
-    <div class="fg" style="margin-bottom:10px"><label>구분</label>
+    <div class="fg" style="margin-bottom:10px"><label data-i18n="category_label">구분</label>
       <select id="hmp-cat"><option value="HMP">HMP</option><option value="Skilled HMP">Skilled HMP</option><option value="Assistant Teacher">Assistant Teacher</option><option value="UNIFORM TEAM">UNIFORM TEAM</option><option value="DESIGN TEAM">DESIGN TEAM</option><option value="PARTNER BRAND">PARTNER BRAND</option></select>
     </div>
     <div class="fg" style="margin-bottom:10px">
-      <label>생산 가능 품목</label>
+      <label data-i18n="capable_products_label">생산 가능 품목</label>
       <div class="tag-wrap" id="capable-wrap" onclick="document.getElementById('capable-input').focus()">
-        <input type="text" id="capable-input" placeholder="품목 입력 후 Enter..." oninput="showCapableSuggest()" onkeydown="capableKeydown(event)" autocomplete="off">
+        <input type="text" id="capable-input" placeholder="품목 입력 후 Enter..." oninput="showCapableSuggest()" onkeydown="capableKeydown(event)" autocomplete="off" data-i18n-placeholder="capable_input_placeholder">
       </div>
       <div id="capable-suggest" style="position:relative"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('hmp-modal')">취소</button>
-      <button class="btn btn-p" onclick="saveHMP()">저장</button>
+      <button class="btn" onclick="closeModal('hmp-modal')" data-i18n="cancel_btn">취소</button>
+      <button class="btn btn-p" onclick="saveHMP()" data-i18n="save_btn">저장</button>
     </div>
   </div>
 </div>
 
 <div class="modal-overlay" id="product-modal">
   <div class="modal">
-    <h3 id="prod-modal-title">제품 추가</h3>
+    <h3 id="prod-modal-title" data-i18n="product_add_title">제품 추가</h3>
     <input type="hidden" id="prod-edit-key" value="">
     <div class="row2">
-      <div class="fg"><label>제품명</label><input type="text" id="prod-name" placeholder="예: New Bag(L)"></div>
-      <div class="fg"><label>노동비 (UGX/pcs)</label><input type="number" id="prod-fee" placeholder="예: 3000"></div>
+      <div class="fg"><label data-i18n="product_name_label">제품명</label><input type="text" id="prod-name" placeholder="예: New Bag(L)"></div>
+      <div class="fg"><label data-i18n="labor_fee_label">노동비 (UGX/pcs)</label><input type="number" id="prod-fee" placeholder="예: 3000"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('product-modal')">취소</button>
-      <button class="btn btn-p" onclick="saveProduct()">저장</button>
+      <button class="btn" onclick="closeModal('product-modal')" data-i18n="cancel_btn">취소</button>
+      <button class="btn btn-p" onclick="saveProduct()" data-i18n="save_btn">저장</button>
     </div>
   </div>
 </div>
 
 <div class="modal-overlay" id="upload-modal">
   <div class="modal" style="max-width:600px">
-    <h3>📥 데이터 업데이트</h3>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px">엑셀 파일을 업로드하거나 JSON 백업으로 복원하세요.</p>
+    <h3 data-i18n="data_update_title">📥 데이터 업데이트</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px" data-i18n="upload_modal_desc">엑셀 파일을 업로드하거나 JSON 백업으로 복원하세요.</p>
 
     <!-- 탭 -->
     <div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:16px;gap:0">
-      <button class="upload-tab active" onclick="switchUploadTab('hmp')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);font-family:inherit">HMP 명단</button>
-      <button class="upload-tab" onclick="switchUploadTab('labor')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit">노동비</button>
-      <button class="upload-tab" onclick="switchUploadTab('qc')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit">QC 이력</button>
-      <button class="upload-tab" onclick="switchUploadTab('json')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit">JSON 백업</button>
+      <button class="upload-tab active" onclick="switchUploadTab('hmp')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);font-family:inherit" data-i18n="utab_hmp">HMP 명단</button>
+      <button class="upload-tab" onclick="switchUploadTab('labor')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit" data-i18n="utab_labor">노동비</button>
+      <button class="upload-tab" onclick="switchUploadTab('qc')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit" data-i18n="utab_qc">QC 이력</button>
+      <button class="upload-tab" onclick="switchUploadTab('json')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit" data-i18n="utab_json">JSON 백업</button>
     </div>
 
     <!-- HMP 명단 업로드 -->
     <div id="utab-hmp" class="utab-content">
       <div style="font-size:13px;color:var(--text2);margin-bottom:10px">
-        <strong style="color:var(--text)">HMP_Production_Capable_Item_Information.xlsx</strong> 형식<br>
-        시트: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">HMP Information</code> — Category / Batch / Name / 제품코드(v표시)
+        <strong style="color:var(--text)">HMP_Production_Capable_Item_Information.xlsx</strong> <span data-i18n="format_word">형식</span><br>
+        <span data-i18n="sheet_word">시트:</span> <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">HMP Information</code> — Category / Batch / Name / <span data-i18n="product_code_v">제품코드(v표시)</span>
       </div>
       <div id="hmp-drop-zone" class="drop-zone" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event,'hmp')">
         <div style="font-size:28px;margin-bottom:8px">📂</div>
-        <div style="font-size:13px;font-weight:500;margin-bottom:4px">엑셀 파일을 여기에 드래그하거나</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px" data-i18n="drag_excel_here">엑셀 파일을 여기에 드래그하거나</div>
         <label style="cursor:pointer;color:var(--accent);font-size:13px;font-weight:500">
-          클릭하여 파일 선택
+          <span data-i18n="click_to_select">클릭하여 파일 선택</span>
           <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(event,'hmp')">
         </label>
       </div>
       <div id="hmp-upload-result" style="margin-top:10px"></div>
-      <div style="font-size:12px;color:var(--text3);margin-top:8px">⚠ 기존 HMP 데이터를 덮어씁니다. 업로드 전 백업을 권장합니다.</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px" data-i18n="hmp_overwrite_warn">⚠ 기존 HMP 데이터를 덮어씁니다. 업로드 전 백업을 권장합니다.</div>
     </div>
 
     <!-- 노동비 업로드 -->
     <div id="utab-labor" class="utab-content" style="display:none">
       <div style="font-size:13px;color:var(--text2);margin-bottom:10px">
-        <strong style="color:var(--text)">HMP_Production_Capable_Item_Information.xlsx</strong> 형식<br>
-        시트: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">Labor cost</code> — No. / Product Name / Labor Cost
+        <strong style="color:var(--text)">HMP_Production_Capable_Item_Information.xlsx</strong> <span data-i18n="format_word">형식</span><br>
+        <span data-i18n="sheet_word">시트:</span> <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">Labor cost</code> — No. / Product Name / Labor Cost
       </div>
       <div id="labor-drop-zone" class="drop-zone" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event,'labor')">
         <div style="font-size:28px;margin-bottom:8px">📂</div>
-        <div style="font-size:13px;font-weight:500;margin-bottom:4px">엑셀 파일을 여기에 드래그하거나</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px" data-i18n="drag_excel_here">엑셀 파일을 여기에 드래그하거나</div>
         <label style="cursor:pointer;color:var(--accent);font-size:13px;font-weight:500">
-          클릭하여 파일 선택
+          <span data-i18n="click_to_select">클릭하여 파일 선택</span>
           <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(event,'labor')">
         </label>
       </div>
       <div id="labor-upload-result" style="margin-top:10px"></div>
-      <div style="font-size:12px;color:var(--text3);margin-top:8px">⚠ 기존 노동비 데이터를 덮어씁니다.</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px" data-i18n="labor_overwrite_warn">⚠ 기존 노동비 데이터를 덮어씁니다.</div>
     </div>
 
     <!-- QC 이력 업로드 -->
     <div id="utab-qc" class="utab-content" style="display:none">
       <div style="font-size:13px;color:var(--text2);margin-bottom:10px">
-        <strong style="color:var(--text)">HMP_Motivation_Fee_Details.xlsx</strong> 형식<br>
-        시트: <code style="background:var(--surface2);padding:1px 5px;border-radius:3px">월 이름 (예: May, June)</code> — Y / M / Product name / Submitted Qty / QC pass QTY / HMP
+        <strong style="color:var(--text)">HMP_Motivation_Fee_Details.xlsx</strong> <span data-i18n="format_word">형식</span><br>
+        <span data-i18n="sheet_word">시트:</span> <code style="background:var(--surface2);padding:1px 5px;border-radius:3px" data-i18n="month_sheet_example">월 이름 (예: May, June)</code> — Y / M / Product name / Submitted Qty / QC pass QTY / HMP
       </div>
       <div class="fg" style="margin-bottom:10px">
-        <label>적용할 월 (시트명)</label>
+        <label data-i18n="apply_month_label">적용할 월 (시트명)</label>
         <input type="text" id="qc-sheet-name" placeholder="예: May, June, July" style="max-width:200px">
       </div>
       <div id="qc-drop-zone" class="drop-zone" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event,'qc')">
         <div style="font-size:28px;margin-bottom:8px">📂</div>
-        <div style="font-size:13px;font-weight:500;margin-bottom:4px">엑셀 파일을 여기에 드래그하거나</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px" data-i18n="drag_excel_here">엑셀 파일을 여기에 드래그하거나</div>
         <label style="cursor:pointer;color:var(--accent);font-size:13px;font-weight:500">
-          클릭하여 파일 선택
+          <span data-i18n="click_to_select">클릭하여 파일 선택</span>
           <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(event,'qc')">
         </label>
       </div>
@@ -494,13 +507,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 
     <!-- JSON 백업 복원 -->
     <div id="utab-json" class="utab-content" style="display:none">
-      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">💾 백업 버튼으로 다운로드한 JSON 파일의 내용을 붙여넣으세요.</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px" data-i18n="json_restore_hint">💾 백업 버튼으로 다운로드한 JSON 파일의 내용을 붙여넣으세요.</div>
       <textarea id="import-json" placeholder='{"producers":[...],"laborFee":{...}}' style="height:130px;font-size:12px;font-family:monospace"></textarea>
-      <button class="btn btn-p" style="margin-top:8px;width:100%" onclick="importData()">복원하기</button>
+      <button class="btn btn-p" style="margin-top:8px;width:100%" onclick="importData()" data-i18n="restore_btn">복원하기</button>
     </div>
 
     <div class="modal-footer" style="margin-top:8px">
-      <button class="btn" onclick="closeModal('upload-modal')">닫기</button>
+      <button class="btn" onclick="closeModal('upload-modal')" data-i18n="close_btn">닫기</button>
     </div>
   </div>
 </div>
@@ -518,6 +531,229 @@ const QC_DATA_MAY={"Fahima Birungi":{"batch":1,"submitted":30,"qcPass":22,"rate"
 // ── STATE ──
 let PRODUCERS,LABOR_FEE;
 let orders=[],planResult=null,activeBatch=null,activeHmpBatch=null,activeQcBatch=null;
+let currentLang=localStorage.getItem('sdc_lang')||'ko';
+
+// ── 다국어 사전 ──
+const I18N={
+  ko:{
+    title_suffix:'생산 계획 시스템', subtitle:'생산 역량 · QC 이력 기반 균등 노동비 배분 자동화',
+    tab_order:'📋 주문 입력', tab_plan:'📊 생산 계획', tab_qc:'✅ QC 이력', tab_hmp:'👥 HMP 현황', tab_manage:'⚙️ 데이터 관리',
+    saved:'✓ 저장됨', backup_btn:'💾 백업', update_btn:'📥 데이터 업데이트',
+    target_month:'대상 월',
+    qc_settings_title:'⚙️ QC 기반 배분 설정', qc_weight_mode_label:'QC 반영 강도',
+    qc_mode_none:'반영 안 함 (균등 배분)', qc_mode_soft:'약하게 반영 (±20%)', qc_mode_medium:'중간 반영 (±40%)', qc_mode_strong:'강하게 반영 (±60%)',
+    qc_unknown_label:'QC 데이터 없는 HMP', qc_unknown_avg:'평균으로 처리', qc_unknown_full:'100%로 처리 (신규 우대)', qc_unknown_low:'낮게 처리 (미참여 패널티)',
+    qc_decay_label:'최신 월 가중치 감소율',
+    qc_decay_strong:'강하게 (최신 월 90%, 이전 월 81%, 73%...)', qc_decay_medium:'중간 (최신 월 80%, 이전 월 64%, 51%...)', qc_decay_soft:'약하게 (최신 월 70%, 이전 월 49%, 34%...)',
+    add_order_title:'주문 추가', product_label:'제품명', select_product:'-- 제품 선택 --',
+    qty_label:'수량 (pcs)', qty_placeholder:'예: 200', fee_label:'단가 노동비 (UGX/pcs)', fee_placeholder:'자동 입력',
+    note_label:'비고', note_placeholder:'예: Use Offcut',
+    filter_title:'🎯 배분 대상 설정', filter_hint:'(설정 안 하면 생산 가능한 전체 HMP에 배분)',
+    filter_batch:'기수', filter_cat:'구분', filter_individual:'개인',
+    ind_select:'개인 선택', ind_selected_suffix:'명 선택됨',
+    select_all:'전체 선택', deselect_all:'전체 해제', search_name:'이름 검색...',
+    add_btn:'추가', load_sample_btn:'샘플 불러오기',
+    order_list_title:'주문 목록', items_suffix:'개 품목', order_empty:'주문을 추가하거나 샘플을 불러오세요',
+    generate_btn:'▶ 생산 계획 생성',
+    plan_empty_msg:'주문 탭에서 주문을 입력하고 "생산 계획 생성"을 눌러주세요.',
+    fee_chart_title:'생산자별 노동비 & QC 배분 현황', plan_table_title:'품목별 생산 배분 계획',
+    th_no:'No.', th_product:'제품명', th_fee:'노동비', th_total_qty:'총수량', th_batch:'기수', th_cat:'구분',
+    th_producer:'생산자', th_qc:'QC율', th_weight:'가중치', th_assigned:'배분수량', th_subtotal:'소계', th_note:'비고',
+    qc_upload_hint:'💡 엑셀 파일을 업로드하면 자동으로 월별 누적 데이터에 추가됩니다. 데이터 업데이트 → QC 이력 탭에서 업로드하세요.',
+    qc_by_hmp_title:'HMP별 누적 QC 통과율', sort_label:'정렬:',
+    sort_batch:'기수순', sort_rate_hi:'QC 높은순', sort_rate_lo:'QC 낮은순', sort_qty:'생산량 많은순',
+    batch_colon:'기수:', qc_dist_title:'QC 통과율 분포',
+    hmp_list_title:'HMP 생산자 목록', add_hmp_btn:'+ HMP 추가', hmp_search_placeholder:'이름 또는 제품 검색...',
+    product_mgmt_title:'제품 & 노동비 관리', add_product_btn:'+ 제품 추가', product_search_placeholder:'제품명 검색...',
+    th_product_name:'제품명', th_labor_fee:'노동비 (UGX)', th_capable_hmp:'생산 가능 HMP', th_manage:'관리',
+    data_status_title:'데이터 현황', last_modified:'마지막 수정:',
+    footer_text:'SDC × HMP Production Planning System · QC 이력 기반 균등 노동비 배분',
+    hmp_add_title:'HMP 추가', name_label:'이름', batch_label:'기수', category_label:'구분',
+    capable_products_label:'생산 가능 품목', capable_input_placeholder:'품목 입력 후 Enter...',
+    cancel_btn:'취소', save_btn:'저장',
+    product_add_title:'제품 추가', product_name_label:'제품명', labor_fee_label:'노동비 (UGX/pcs)',
+    data_update_title:'📥 데이터 업데이트', upload_modal_desc:'엑셀 파일을 업로드하거나 JSON 백업으로 복원하세요.',
+    utab_hmp:'HMP 명단', utab_labor:'노동비', utab_qc:'QC 이력', utab_json:'JSON 백업',
+    format_word:'형식', sheet_word:'시트:', product_code_v:'제품코드(v표시)', month_sheet_example:'월 이름 (예: May, June)',
+    apply_month_label:'적용할 월 (시트명)', drag_excel_here:'엑셀 파일을 여기에 드래그하거나', click_to_select:'클릭하여 파일 선택',
+    hmp_overwrite_warn:'⚠ 기존 HMP 데이터를 덮어씁니다. 업로드 전 백업을 권장합니다.',
+    labor_overwrite_warn:'⚠ 기존 노동비 데이터를 덮어씁니다.',
+    json_restore_hint:'💾 백업 버튼으로 다운로드한 JSON 파일의 내용을 붙여넣으세요.',
+    restore_btn:'복원하기', close_btn:'닫기',
+    // 동적 텍스트
+    edit_btn:'편집', delete_btn:'삭제', edit_btn_sm:'수정',
+    no_capable_products:'생산 가능 품목 없음', no_data:'데이터 없음',
+    no_eligible_warn:'⚠ 이 제품을 만들 수 있는 HMP가 없습니다',
+    eligible_count:(n,s)=>`생산 가능: ${n}명 (${s})`,
+    people_suffix:'명', batch_suffix:'기',
+    total_labor_fee:'총 노동비',
+    qty_required:'제품과 수량을 입력해주세요.',
+    no_assigned:'배정 없음', month_summary:'개월',
+    target_label:'목표', target_legend_note_full:'빨간 선 = 기본 목표', uniform_target_suffix:'천 UGX · QC 배지 = 가중평균 통과율 · 단위: 천 UGX',
+    std_dev:'표준편차', all_label:'전체',
+    none_assigned_warn:'생산 가능 HMP 없음',
+    no_eligible_in_filter:'설정된 배분 대상',
+    in_filter_no_capable:'중 이 제품을 생산 가능한 HMP가 없음',
+    total_orders:'총 주문 품목', total_qty:'총 생산 수량', total_fee_label:'총 노동비',
+    qc_applied_label:'QC 반영 / 참여 HMP', qc_not_applied:'미적용', weak:'약', mid_strong:'중강',
+    total_hmp:'전체 HMP', capable_hmp:'생산 가능 HMP', qc_history_label:'QC 누적 이력', registered_products:'등록 제품 수',
+    month_unit:'개월', none_word:'없음',
+    no_condition_data:'해당 조건 데이터 없음',
+    confirm_delete_month:s=>`[${s}] 데이터를 삭제하시겠습니까?`,
+    confirm_delete_hmp:n=>`${n}을(를) 삭제하시겠습니까?`,
+    confirm_delete_product:k=>`"${k}" 제품을 삭제하시겠습니까?\n모든 HMP의 생산 가능 품목에서도 제거됩니다.`,
+    invalid_json:'올바른 JSON 형식이 아닙니다.',
+    import_success:'복원 완료', name_required:'이름을 입력해주세요.', product_name_required:'제품명을 입력해주세요.',
+    excel_parse_error:e=>`❌ 파일을 읽을 수 없습니다: ${e}`,
+    sheet_not_found:'❌ "HMP Information" 시트를 찾을 수 없습니다.',
+    labor_sheet_not_found:'❌ "Labor cost" 시트를 찾을 수 없습니다.',
+    no_hmp_parsed:'❌ 파싱된 HMP가 없습니다. 파일 형식을 확인해주세요.',
+    no_labor_parsed:'❌ 파싱된 노동비 항목이 없습니다.',
+    no_qc_parsed:'❌ 파싱된 QC 데이터가 없습니다.',
+    cols_not_found:'❌ Product Name / Labor Cost 컬럼을 찾을 수 없습니다.',
+    sheet_not_found_qc:'❌ 시트를 찾을 수 없습니다.',
+    available_sheets:'사용 가능한 시트:',
+    hmp_updated:n=>`✅ HMP ${n}명 업데이트 완료`,
+    capable_hmp_count:n=>`생산 가능 품목 있는 HMP: ${n}명`,
+    labor_updated:n=>`✅ 노동비 ${n}개 제품 업데이트 완료`,
+    qc_updated:(s,n,m)=>`✅ [${s}] QC 이력 ${n}명 업로드 완료 — 누적 ${m}개월 데이터 반영`,
+    avg_pass_rate:r=>`이번 월 평균 통과율: ${r}%`,
+    reading_file:'⏳ 파일 읽는 중...',
+    recent_label:'최신', prev_label:'이전',
+    cumulative_applied:(m,d)=>`✅ ${m}개월 누적 반영 중 — 감소율 ${d}%/월.`,
+    weighted_avg_formula:'HMP별 가중평균 = (최신×1.0 + 이전×decay + 그 이전×decay² + ...) ÷ 가중치합',
+    excellent_good:'우수 (80%↑) / 양호 (50%↑)', needs_attention:'주의 필요 (50%↓)',
+    qc_history_no_data:'QC 이력 없음. 데이터 업데이트에서 엑셀 파일을 업로드하세요.',
+    default_label:'기본',
+  },
+  en:{
+    title_suffix:'Production Planning System', subtitle:'Production Capability · QC History-Based Equal Labor Fee Distribution',
+    tab_order:'📋 Orders', tab_plan:'📊 Plan', tab_qc:'✅ QC History', tab_hmp:'👥 HMP Status', tab_manage:'⚙️ Data Mgmt',
+    saved:'✓ Saved', backup_btn:'💾 Backup', update_btn:'📥 Update Data',
+    target_month:'Target Month',
+    qc_settings_title:'⚙️ QC-Based Distribution Settings', qc_weight_mode_label:'QC Weight Intensity',
+    qc_mode_none:'None (Equal Distribution)', qc_mode_soft:'Soft (±20%)', qc_mode_medium:'Medium (±40%)', qc_mode_strong:'Strong (±60%)',
+    qc_unknown_label:'HMP Without QC Data', qc_unknown_avg:'Treat as Average', qc_unknown_full:'Treat as 100% (Favor New)', qc_unknown_low:'Treat as Low (Penalty)',
+    qc_decay_label:'Recent Month Weight Decay',
+    qc_decay_strong:'Strong (latest 90%, prior 81%, 73%...)', qc_decay_medium:'Medium (latest 80%, prior 64%, 51%...)', qc_decay_soft:'Soft (latest 70%, prior 49%, 34%...)',
+    add_order_title:'Add Order', product_label:'Product', select_product:'-- Select Product --',
+    qty_label:'Quantity (pcs)', qty_placeholder:'e.g. 200', fee_label:'Labor Fee (UGX/pcs)', fee_placeholder:'Auto-filled',
+    note_label:'Note', note_placeholder:'e.g. Use Offcut',
+    filter_title:'🎯 Assignment Target Settings', filter_hint:'(If not set, distributed to all capable HMPs)',
+    filter_batch:'Batch', filter_cat:'Category', filter_individual:'Individual',
+    ind_select:'Select Individuals', ind_selected_suffix:' selected',
+    select_all:'Select All', deselect_all:'Deselect All', search_name:'Search name...',
+    add_btn:'Add', load_sample_btn:'Load Sample',
+    order_list_title:'Order List', items_suffix:' items', order_empty:'Add an order or load a sample',
+    generate_btn:'▶ Generate Plan',
+    plan_empty_msg:'Enter orders in the Orders tab and click "Generate Plan".',
+    fee_chart_title:'Labor Fee & QC Distribution by Producer', plan_table_title:'Production Distribution Plan by Item',
+    th_no:'No.', th_product:'Product', th_fee:'Labor Fee', th_total_qty:'Total Qty', th_batch:'Batch', th_cat:'Category',
+    th_producer:'Producer', th_qc:'QC Rate', th_weight:'Weight', th_assigned:'Assigned Qty', th_subtotal:'Subtotal', th_note:'Note',
+    qc_upload_hint:'💡 Uploading an Excel file automatically adds it to the monthly cumulative data. Upload it under Update Data → QC History tab.',
+    qc_by_hmp_title:'Cumulative QC Pass Rate by HMP', sort_label:'Sort:',
+    sort_batch:'By Batch', sort_rate_hi:'QC High to Low', sort_rate_lo:'QC Low to High', sort_qty:'By Production Qty',
+    batch_colon:'Batch:', qc_dist_title:'QC Pass Rate Distribution',
+    hmp_list_title:'HMP Producer List', add_hmp_btn:'+ Add HMP', hmp_search_placeholder:'Search name or product...',
+    product_mgmt_title:'Product & Labor Fee Management', add_product_btn:'+ Add Product', product_search_placeholder:'Search product name...',
+    th_product_name:'Product Name', th_labor_fee:'Labor Fee (UGX)', th_capable_hmp:'Capable HMPs', th_manage:'Manage',
+    data_status_title:'Data Status', last_modified:'Last Modified:',
+    footer_text:'SDC × HMP Production Planning System · QC History-Based Equal Labor Fee Distribution',
+    hmp_add_title:'Add HMP', name_label:'Name', batch_label:'Batch', category_label:'Category',
+    capable_products_label:'Capable Products', capable_input_placeholder:'Type item and press Enter...',
+    cancel_btn:'Cancel', save_btn:'Save',
+    product_add_title:'Add Product', product_name_label:'Product Name', labor_fee_label:'Labor Fee (UGX/pcs)',
+    data_update_title:'📥 Update Data', upload_modal_desc:'Upload an Excel file or restore from a JSON backup.',
+    utab_hmp:'HMP List', utab_labor:'Labor Fees', utab_qc:'QC History', utab_json:'JSON Backup',
+    format_word:'format', sheet_word:'Sheet:', product_code_v:'Product Code (marked v)', month_sheet_example:'Month name (e.g. May, June)',
+    apply_month_label:'Apply to Month (Sheet Name)', drag_excel_here:'Drag an Excel file here, or', click_to_select:'Click to select file',
+    hmp_overwrite_warn:'⚠ This will overwrite existing HMP data. Backup recommended before uploading.',
+    labor_overwrite_warn:'⚠ This will overwrite existing labor fee data.',
+    json_restore_hint:'💾 Paste the contents of a JSON file downloaded via the Backup button.',
+    restore_btn:'Restore', close_btn:'Close',
+    edit_btn:'Edit', delete_btn:'Delete', edit_btn_sm:'Edit',
+    no_capable_products:'No capable products', no_data:'No data',
+    no_eligible_warn:'⚠ No HMP can produce this item',
+    eligible_count:(n,s)=>`Capable: ${n} (${s})`,
+    people_suffix:'', batch_suffix:'',
+    total_labor_fee:'Total Labor Fee',
+    qty_required:'Please enter a product and quantity.',
+    no_assigned:'Not assigned', month_summary:' months',
+    target_label:'Target', target_legend_note_full:'Red line = base target', uniform_target_suffix:'k UGX · QC badge = weighted pass rate · Unit: thousand UGX',
+    std_dev:'Std. Dev.', all_label:'All',
+    none_assigned_warn:'No capable HMP available',
+    no_eligible_in_filter:'No HMP within the set assignment target',
+    in_filter_no_capable:'can produce this item',
+    total_orders:'Total Order Items', total_qty:'Total Production Qty', total_fee_label:'Total Labor Fee',
+    qc_applied_label:'QC Applied / Active HMPs', qc_not_applied:'Off', weak:'Soft', mid_strong:'Medium/Strong',
+    total_hmp:'Total HMPs', capable_hmp:'Capable HMPs', qc_history_label:'QC History', registered_products:'Registered Products',
+    month_unit:' months', none_word:'None',
+    no_condition_data:'No data for this condition',
+    confirm_delete_month:s=>`Delete [${s}] data?`,
+    confirm_delete_hmp:n=>`Delete ${n}?`,
+    confirm_delete_product:k=>`Delete product "${k}"?\nThis will also remove it from all HMPs' capable products.`,
+    invalid_json:'Invalid JSON format.',
+    import_success:'Restore complete', name_required:'Please enter a name.', product_name_required:'Please enter a product name.',
+    excel_parse_error:e=>`❌ Could not read file: ${e}`,
+    sheet_not_found:'❌ Could not find the "HMP Information" sheet.',
+    labor_sheet_not_found:'❌ Could not find the "Labor cost" sheet.',
+    no_hmp_parsed:'❌ No HMP data parsed. Please check the file format.',
+    no_labor_parsed:'❌ No labor fee items parsed.',
+    no_qc_parsed:'❌ No QC data parsed.',
+    cols_not_found:'❌ Could not find Product Name / Labor Cost columns.',
+    sheet_not_found_qc:'❌ Sheet not found.',
+    available_sheets:'Available sheets:',
+    hmp_updated:n=>`✅ ${n} HMPs updated`,
+    capable_hmp_count:n=>`HMPs with capable products: ${n}`,
+    labor_updated:n=>`✅ ${n} product labor fees updated`,
+    qc_updated:(s,n,m)=>`✅ [${s}] QC history for ${n} HMPs uploaded — ${m} months of cumulative data applied`,
+    avg_pass_rate:r=>`This month's average pass rate: ${r}%`,
+    reading_file:'⏳ Reading file...',
+    recent_label:'Latest', prev_label:'Prior',
+    cumulative_applied:(m,d)=>`✅ Applying ${m} months of cumulative data — decay rate ${d}%/month.`,
+    weighted_avg_formula:'Weighted avg per HMP = (latest×1.0 + prior×decay + earlier×decay² + ...) ÷ sum of weights',
+    excellent_good:'Excellent (80%+) / Good (50%+)', needs_attention:'Needs Attention (<50%)',
+    qc_history_no_data:'No QC history. Upload an Excel file under Data Management.',
+    default_label:'Default',
+  }
+};
+
+function t(key,...args){
+  const entry=I18N[currentLang]?.[key]??I18N.ko[key];
+  if(typeof entry==='function') return entry(...args);
+  return entry??key;
+}
+
+function applyI18n(){
+  document.documentElement.lang=currentLang==='ko'?'ko':'en';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key=el.getAttribute('data-i18n');
+    if(I18N[currentLang]?.[key]!==undefined) el.textContent=I18N[currentLang][key];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    const key=el.getAttribute('data-i18n-placeholder');
+    if(I18N[currentLang]?.[key]!==undefined) el.placeholder=I18N[currentLang][key];
+  });
+  document.getElementById('lang-toggle-btn').textContent=currentLang==='ko'?'🌐 EN':'🌐 한국어';
+}
+
+function toggleLang(){
+  currentLang=currentLang==='ko'?'en':'ko';
+  localStorage.setItem('sdc_lang',currentLang);
+  applyI18n();
+  // 동적으로 렌더링된 화면들 다시 그리기
+  rebuildProductSelect();
+  setupHmpFilters();
+  setupOrderFilterPanel();
+  renderHMPList();
+  renderOrders();
+  updateQcSettingDesc();
+  if(planResult){renderPlan();}
+  if(document.getElementById('s-qc')?.classList.contains('active')) renderQCTab();
+  if(document.getElementById('s-manage')?.classList.contains('active')){renderProductList();renderDataStats();}
+  updateFilterSummary();
+}
+
 let capableTags=[],saveTimer=null;
 let settings={qcWeightMode:'soft',qcUnknownMode:'average',qcDecay:0.8};
 
@@ -675,7 +911,7 @@ function updateQcSettingDesc(){
   const decay=settings.qcDecay||0.8;
   const months=(window.QC_HISTORY||[]).length;
   const desc={none:'QC 이력을 무시하고 모든 HMP에 동일하게 배분합니다.',soft:'QC 누적 통과율에 따라 최대 ±20% 범위에서 배분량을 조정합니다.',medium:'QC 누적 통과율에 따라 최대 ±40% 범위에서 배분량을 조정합니다.',strong:'QC 누적 통과율에 따라 최대 ±60% 범위에서 배분량을 강하게 조정합니다.'};
-  const decayDesc=months>1?` 누적 ${months}개월, 최신 월 가중치 ${Math.round(decay*100)}%씩 감소 적용.`:'';
+  const decayDesc=months>1?t('cumulative_applied',months,Math.round(decay*100)):'';
   document.getElementById('qc-setting-desc').textContent=(desc[mode]||'')+decayDesc;
 }
 function exportData(){
@@ -688,8 +924,8 @@ function importData(){
   try{const d=JSON.parse(document.getElementById('import-json').value);
     if(!d.producers||!d.laborFee)throw new Error('invalid');
     PRODUCERS=d.producers;LABOR_FEE=d.laborFee;
-    saveData();refreshAllUI();closeModal('upload-modal');alert('복원 완료');
-  }catch(e){alert('올바른 JSON 형식이 아닙니다.');}
+    saveData();refreshAllUI();closeModal('upload-modal');alert(t('import_success'));
+  }catch(e){alert(t('invalid_json'));}
 }
 
 // ── HELPERS ──
@@ -724,10 +960,10 @@ function onProdChange(){
   const fee=LABOR_FEE[k]||0;
   if(fee&&!feeEl.value)feeEl.value=fee;
   const elig=PRODUCERS.filter(p=>p.capable.includes(k));
-  if(!elig.length){el.innerHTML='<span style="color:var(--red)">⚠ 생산 가능 HMP 없음</span>';return;}
+  if(!elig.length){el.innerHTML='<span style="color:var(--red)">'+t('no_eligible_warn')+'</span>';return;}
   const byB={};elig.forEach(p=>byB[p.batch]=(byB[p.batch]||0)+1);
   const s=Object.entries(byB).sort((a,b)=>a[0]-b[0]).map(([b,c])=>`${b}기 ${c}명`).join(', ');
-  el.textContent=`생산 가능: ${elig.length}명 (${s}) · 노동비 ${fee.toLocaleString()} UGX/pcs`;
+  el.textContent=`${t('eligible_count',elig.length,s)} · ${t('fee_label').split(' ')[0]||''} ${fee.toLocaleString()} UGX/pcs`;
 }
 
 // ── ORDERS ──
@@ -736,7 +972,7 @@ function addOrder(){
   const qty=parseInt(document.getElementById('inp-qty').value)||0;
   const fee=parseInt(document.getElementById('inp-fee').value)||(LABOR_FEE[k]||0);
   const note=document.getElementById('inp-note').value;
-  if(!k||!qty){alert('제품과 수량을 입력해주세요.');return;}
+  if(!k||!qty){alert(t('qty_required'));return;}
   // 현재 필터 상태 수집
   const selBatches=getSelectedBatches();
   const selCats=getSelectedCats();
@@ -764,7 +1000,7 @@ function removeOrder(i){orders.splice(i,1);renderOrders();saveOrders();}
 function renderOrders(){
   document.getElementById('ocnt').textContent=orders.length+'개 품목';
   const el=document.getElementById('olist');
-  if(!orders.length){el.innerHTML='<div class="empty">주문을 추가하거나 샘플을 불러오세요</div>';document.getElementById('ototal').textContent='';return;}
+  if(!orders.length){el.innerHTML=`<div class="empty">${t('order_empty')}</div>`;document.getElementById('ototal').textContent='';return;}
   const tot=orders.reduce((s,o)=>s+o.qty*o.fee,0);
   el.innerHTML=orders.map((o,i)=>{
     const fb=getFilterBadge(o.filter);
@@ -775,16 +1011,16 @@ function renderOrders(){
       <button class="btn btn-d btn-sm" onclick="removeOrder(${i})" style="align-self:center">×</button>
     </div>`;
   }).join('');
-  document.getElementById('ototal').textContent=`총 노동비 ${tot.toLocaleString()} UGX`;
+  document.getElementById('ototal').textContent=`${t('total_labor_fee')} ${tot.toLocaleString()} UGX`;
 }
 
 function getFilterBadge(filter){
   if(!filter||(!filter.batches?.length&&!filter.cats?.length&&!filter.inds?.length))
-    return'<span class="filter-badge fb-all">전체 HMP</span>';
+    return `<span class="filter-badge fb-all">${t('all_label')} HMP</span>`;
   const parts=[];
-  if(filter.batches?.length) parts.push(`<span class="filter-badge fb-batch">${filter.batches.map(b=>b+'기').join(' ')}</span>`);
+  if(filter.batches?.length) parts.push(`<span class="filter-badge fb-batch">${filter.batches.map(b=>b+(currentLang==='ko'?'기':'')).join(' ')}</span>`);
   if(filter.cats?.length) parts.push(`<span class="filter-badge fb-cat">${filter.cats.join(' ')}</span>`);
-  if(filter.inds?.length) parts.push(`<span class="filter-badge fb-ind">개인 ${filter.inds.length}명</span>`);
+  if(filter.inds?.length) parts.push(`<span class="filter-badge fb-ind">${t('filter_individual')} ${filter.inds.length}${t('people_suffix')}</span>`);
   return parts.join(' ');
 }
 function loadSample(){
@@ -876,16 +1112,16 @@ function renderPlan(){
   const avg=av.length?av.reduce((a,b)=>a+b)/av.length:0;
   const mode=settings.qcWeightMode;
   document.getElementById('smg').innerHTML=`
-    <div class="smc"><div class="lbl">총 주문 품목</div><div class="val">${orders.length}</div></div>
-    <div class="smc"><div class="lbl">총 생산 수량</div><div class="val">${orders.reduce((s,o)=>s+o.qty,0).toLocaleString()}</div></div>
-    <div class="smc"><div class="lbl">총 노동비</div><div class="val">${Math.round(totalLabor/10000)}만</div></div>
-    <div class="smc"><div class="lbl">QC 반영 / 참여 HMP</div><div class="val">${mode==='none'?'미적용':mode==='soft'?'약':'중강'} · ${av.length}명</div></div>`;
+    <div class="smc"><div class="lbl">${t('total_orders')}</div><div class="val">${orders.length}</div></div>
+    <div class="smc"><div class="lbl">${t('total_qty')}</div><div class="val">${orders.reduce((s,o)=>s+o.qty,0).toLocaleString()}</div></div>
+    <div class="smc"><div class="lbl">${t('total_fee_label')}</div><div class="val">${currentLang==='ko'?Math.round(totalLabor/10000)+'만':(totalLabor/1000).toLocaleString()+'k'}</div></div>
+    <div class="smc"><div class="lbl">${t('qc_applied_label')}</div><div class="val">${mode==='none'?t('qc_not_applied'):mode==='soft'?t('weak'):t('mid_strong')} · ${av.length}${t('people_suffix')}</div></div>`;
   document.getElementById('plan-warns').innerHTML=Object.entries(unassigned).filter(([,v])=>v.qty>0)
     .map(([k,v])=>{
       const fb=getFilterBadge(v.filter);
       const reason=(v.filter&&((v.filter.batches&&v.filter.batches.length)||(v.filter.cats&&v.filter.cats.length)||(v.filter.inds&&v.filter.inds.length)))
-        ?`설정된 배분 대상(${fb}) 중 이 제품을 생산 가능한 HMP가 없음`
-        :'생산 가능 HMP 없음';
+        ?`${t('no_eligible_in_filter')}(${fb}) ${t('in_filter_no_capable')}`
+        :t('none_assigned_warn');
       return`<div class="alert alert-warn">⚠ <strong>${k}</strong> ${v.qty}pcs — ${reason}</div>`;
     }).join('');
   activeBatch=null;renderBatchFilter();renderFeeChart(null);renderPlanTable(null);
@@ -893,15 +1129,15 @@ function renderPlan(){
 
 function renderBatchFilter(){
   const batches=[...new Set(PRODUCERS.map(p=>p.batch))].sort();
-  document.getElementById('bf').innerHTML=['전체',...batches].map((v,i)=>
-    `<button class="chip ${i===0&&activeBatch===null?'on':activeBatch===v?'on':''}" onclick="filterBatch(${v==='전체'?'null':v})">${v==='전체'?'전체':v+'기'}</button>`).join('');
+  document.getElementById('bf').innerHTML=[t('all_label'),...batches].map((v,i)=>
+    `<button class="chip ${i===0&&activeBatch===null?'on':activeBatch===v?'on':''}" onclick="filterBatch(${v===t('all_label')?'null':v})">${v===t('all_label')?t('all_label'):v+(currentLang==='ko'?'기':'')}</button>`).join('');
 }
 function filterBatch(b){activeBatch=b;renderBatchFilter();renderFeeChart(b);renderPlanTable(b);}
 
 function renderFeeChart(bFilter){
   const{pFee,baseTarget,weights,personalTarget}=planResult;
   const list=PRODUCERS.filter(p=>p.capable.length>0&&(bFilter===null||p.batch===bFilter)).sort((a,b)=>pFee[b.name]-pFee[a.name]);
-  if(!list.length){document.getElementById('fee-chart').innerHTML='<div class="empty">데이터 없음</div>';return;}
+  if(!list.length){document.getElementById('fee-chart').innerHTML=`<div class="empty">${t('no_data')}</div>`;return;}
   const maxFee=Math.max(...list.map(p=>pFee[p.name]),(personalTarget?Math.max(...Object.values(personalTarget)):baseTarget)*1.3,1);
   const tp=Math.round(baseTarget/maxFee*100);
   document.getElementById('fee-chart').innerHTML=`<div style="margin-bottom:14px">${list.map(p=>{
@@ -918,10 +1154,10 @@ function renderFeeChart(bFilter){
       <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${col}"></div><div class="bar-target" style="left:${tp}%"></div></div>
       <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px">
         <span class="bdg ${qcBadgeClass(rate)}" style="font-size:10px">${rateStr}</span>
-        <span style="font-size:11px;font-weight:600">${f?Math.round(f/1000)+'천':'0'}</span>
+        <span style="font-size:11px;font-weight:600">${f?Math.round(f/1000)+(currentLang==='ko'?'천':'k'):'0'}</span>
       </div>
     </div>`;}).join('')}</div>
-  <div style="font-size:11px;color:var(--text3)">빨간 선 = 기본 목표 ${Math.round(baseTarget/1000)}천 UGX · QC 배지 = 5월 통과율 · 단위: 천 UGX${(()=>{const v=list.map(p=>pFee[p.name]).filter(x=>x>0);if(!v.length)return'';const av=v.reduce((a,b)=>a+b)/v.length;return' · 표준편차 '+Math.round(Math.sqrt(v.reduce((s,x)=>s+(x-av)**2,0)/v.length)/1000)+'천';})()}</div>`;
+  <div style="font-size:11px;color:var(--text3)">${t('target_legend_note_full')} ${Math.round(baseTarget/1000)}${t('uniform_target_suffix')}${(()=>{const v=list.map(p=>pFee[p.name]).filter(x=>x>0);if(!v.length)return'';const av=v.reduce((a,b)=>a+b)/v.length;return' · '+t('std_dev')+' '+Math.round(Math.sqrt(v.reduce((s,x)=>s+(x-av)**2,0)/v.length)/1000)+(currentLang==='ko'?'천':'k');})()}</div>`;
 }
 
 function renderPlanTable(bFilter){
@@ -949,7 +1185,7 @@ function renderPlanTable(bFilter){
       rows+=`</tr>`;
     });no++;
   });
-  document.getElementById('plan-tbody').innerHTML=rows||`<tr><td colspan="12" class="empty" style="padding:20px">해당 조건 데이터 없음</td></tr>`;
+  document.getElementById('plan-tbody').innerHTML=rows||`<tr><td colspan="12" class="empty" style="padding:20px">${t('no_condition_data')}</td></tr>`;
 }
 
 function exportCSV(){
@@ -979,7 +1215,7 @@ function renderQCTab(){
 
   // 소스 레이블 업데이트
   const lbl=document.getElementById('qc-source-label');
-  if(lbl) lbl.textContent=history.length>1?`— ${history.length}개월 누적 가중평균`:`— ${history[0]?.label||'기본 데이터'}`;
+  if(lbl) lbl.textContent=history.length>1?`— ${history.length}${t('month_unit')} ${currentLang==='ko'?'누적 가중평균':'cumulative weighted avg'}`:`— ${history[0]?.label||t('default_label')}`;
 
   // ── 월별 이력 관리 카드 ──
   const sorted=[...history].sort((a,b)=>new Date(b.uploadedAt)-new Date(a.uploadedAt));
@@ -1009,8 +1245,8 @@ function renderQCTab(){
   // ── 가중치 미리보기 ──
   document.getElementById('qc-weighted-preview').innerHTML=history.length>1
     ?`<div style="font-size:12px;padding:8px 12px;background:#EAF3EE;border-radius:var(--radius);color:var(--accent)">
-        ✅ ${history.length}개월 누적 반영 중 — 감소율 ${Math.round(decay*100)}%/월. 
-        HMP별 가중평균 = (최신×1.0 + 이전×${decay} + 그 이전×${Math.round(decay**2*100)/100} + ...) ÷ 가중치합
+        ${t('cumulative_applied',history.length,Math.round(decay*100))}
+        ${t('weighted_avg_formula')}
       </div>`:'';
 
   // ── 요약 통계 (가중평균 기준) ──
@@ -1029,14 +1265,14 @@ function renderQCTab(){
   if(!document.getElementById('qc-batch-filter').querySelector('.chip')){
     const batches=[...new Set(Object.values(weighted).map(d=>d.batch).filter(Boolean))].sort();
     document.getElementById('qc-batch-filter').innerHTML='<span style="font-size:12px;color:var(--text2);font-weight:500">기수:</span>'+
-      ['전체',...batches].map((v,i)=>`<button class="chip ${i===0?'on':''}" onclick="filterQcBatch(${v==='전체'?'null':v},this)">${v==='전체'?'전체':v+'기'}</button>`).join('');
+      [t('all_label'),...batches].map((v,i)=>`<button class="chip ${i===0?'on':''}" onclick="filterQcBatch(${v===t('all_label')?'null':v},this)">${v===t('all_label')?t('all_label'):v+(currentLang==='ko'?'기':'')}</button>`).join('');
   }
   renderQCList();
   renderQCDistChart();
 }
 
 window.removeQcMonth=function(sheet){
-  if(!confirm(`[${sheet}] 데이터를 삭제하시겠습니까?`)) return;
+  if(!confirm(t('confirm_delete_month',sheet))) return;
   window.QC_HISTORY=(window.QC_HISTORY||[]).filter(h=>h.sheet!==sheet);
   localStorage.setItem('sdc_qc_history',JSON.stringify(window.QC_HISTORY));
   computeWeightedQC();
@@ -1094,7 +1330,7 @@ function renderQCList(){
           <div class="qc-bar-bg"><div class="qc-bar-fill" style="width:${pcts}%;background:${barColor}"></div></div>
           <span class="qc-rate-badge" style="color:${barColor}">${rate!==null?rate+'%':'N/A'}</span>
         </div>
-        ${isMultiMonth?`<span style="font-size:11px;color:var(--text2)">${d.months.length}개월 누적</span>`:''}
+        ${isMultiMonth?`<span style="font-size:11px;color:var(--text2)">${d.months.length}${t('month_unit')} ${currentLang==='ko'?'누적':'cumulative'}</span>`:''}
       </div>
       ${isMultiMonth?`<div style="padding:0 4px">
         <div style="display:grid;grid-template-columns:80px 60px 1fr 50px;gap:6px;font-size:11px;color:var(--text3);padding:2px 0;border-bottom:1px solid var(--border);margin-bottom:2px">
@@ -1124,15 +1360,15 @@ function renderQCDistChart(){
     <div style="display:flex;gap:12px;padding:0 8px">
       ${counts.map(b=>`<div style="flex:1;text-align:center;font-size:11px;color:var(--text2)">${b.label}</div>`).join('')}
     </div>
-    <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center">누적 가중평균 QC 통과율 분포 (${all.length}명, ${months}개월 기준)</div>`;
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center">${currentLang==='ko'?'누적 가중평균 QC 통과율 분포':'Cumulative weighted QC pass rate distribution'} (${all.length}${t('people_suffix')}, ${months}${t('month_unit')})</div>`;
 }
 
 // ── HMP 현황 ──
 function setupHmpFilters(){
   const batches=[...new Set(PRODUCERS.map(p=>p.batch))].sort();
   const el=document.getElementById('hmp-filters');
-  el.innerHTML='<span style="font-size:12px;font-weight:500;color:var(--text2)">기수:</span>'+
-    ['전체',...batches].map((v,i)=>`<button class="chip ${i===0?'on':''}" onclick="filterHmp(${v==='전체'?'null':v},this)">${v==='전체'?'전체':v+'기'}</button>`).join('');
+  el.innerHTML=`<span style="font-size:12px;font-weight:500;color:var(--text2)">${t('batch_colon')}</span>`+
+    [t('all_label'),...batches].map((v,i)=>`<button class="chip ${i===0?'on':''}" onclick="filterHmp(${v===t('all_label')?'null':v},this)">${v===t('all_label')?t('all_label'):v+(currentLang==='ko'?'기':'')}</button>`).join('');
 }
 function filterHmp(b,el){activeHmpBatch=b;document.querySelectorAll('#hmp-filters .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');renderHMPList();}
 function renderHMPList(){
@@ -1156,19 +1392,19 @@ function renderHMPList(){
       </div>
       <div class="ptags">${p.capable.length
         ?p.capable.map(c=>`<span class="ptag ${orderKeys.has(c)?'hi':''}">${c}${LABOR_FEE[c]?' <span style="opacity:.5;font-size:10px">${LABOR_FEE[c].toLocaleString()}</span>':''}</span>`).join('')
-        :'<span style="font-size:12px;color:var(--text3)">생산 가능 품목 없음</span>'
+        :`<span style="font-size:12px;color:var(--text3)">${t('no_capable_products')}</span>`
       }</div>
       <div style="display:flex;gap:4px;flex-shrink:0">
-        <button class="btn btn-sm" onclick="openEditHmpModal(${idx[p.name]})">편집</button>
-        <button class="btn btn-sm btn-d" onclick="deleteHMP(${idx[p.name]})">삭제</button>
+        <button class="btn btn-sm" onclick="openEditHmpModal(${idx[p.name]})">${t('edit_btn')}</button>
+        <button class="btn btn-sm btn-d" onclick="deleteHMP(${idx[p.name]})">${t('delete_btn')}</button>
       </div>
     </div>`;
   }).join('');
 }
 
 // ── HMP 모달 ──
-function openAddHmpModal(){capableTags=[];document.getElementById('hmp-modal-title').textContent='HMP 추가';document.getElementById('hmp-edit-idx').value=-1;document.getElementById('hmp-name').value='';document.getElementById('hmp-batch').value=1;document.getElementById('hmp-cat').value='HMP';renderCapableTags();document.getElementById('hmp-modal').classList.add('open');}
-function openEditHmpModal(idx){const p=PRODUCERS[idx];capableTags=[...p.capable];document.getElementById('hmp-modal-title').textContent='HMP 수정';document.getElementById('hmp-edit-idx').value=idx;document.getElementById('hmp-name').value=p.name;document.getElementById('hmp-batch').value=p.batch;document.getElementById('hmp-cat').value=p.category;renderCapableTags();document.getElementById('hmp-modal').classList.add('open');}
+function openAddHmpModal(){capableTags=[];document.getElementById('hmp-modal-title').textContent=t('hmp_add_title');document.getElementById('hmp-edit-idx').value=-1;document.getElementById('hmp-name').value='';document.getElementById('hmp-batch').value=1;document.getElementById('hmp-cat').value='HMP';renderCapableTags();document.getElementById('hmp-modal').classList.add('open');}
+function openEditHmpModal(idx){const p=PRODUCERS[idx];capableTags=[...p.capable];document.getElementById('hmp-modal-title').textContent=currentLang==='ko'?'HMP 수정':'Edit HMP';document.getElementById('hmp-edit-idx').value=idx;document.getElementById('hmp-name').value=p.name;document.getElementById('hmp-batch').value=p.batch;document.getElementById('hmp-cat').value=p.category;renderCapableTags();document.getElementById('hmp-modal').classList.add('open');}
 function renderCapableTags(){
   const wrap=document.getElementById('capable-wrap'),input=document.getElementById('capable-input');
   wrap.querySelectorAll('.tag-item').forEach(el=>el.remove());
@@ -1191,23 +1427,23 @@ function saveHMP(){
   const batch=parseInt(document.getElementById('hmp-batch').value);
   const cat=document.getElementById('hmp-cat').value;
   const idx=parseInt(document.getElementById('hmp-edit-idx').value);
-  if(!name){alert('이름을 입력해주세요.');return;}
+  if(!name){alert(t('name_required'));return;}
   const entry={category:cat,batch,name,capable:[...capableTags]};
   if(idx===-1)PRODUCERS.push(entry); else PRODUCERS[idx]=entry;
   saveData();refreshAllUI();closeModal('hmp-modal');
 }
-function deleteHMP(idx){if(!confirm(`${PRODUCERS[idx].name}을(를) 삭제하시겠습니까?`))return;PRODUCERS.splice(idx,1);saveData();refreshAllUI();}
+function deleteHMP(idx){if(!confirm(t('confirm_delete_hmp',PRODUCERS[idx].name)))return;PRODUCERS.splice(idx,1);saveData();refreshAllUI();}
 
 // ── 제품 관리 ──
-function openAddProductModal(){document.getElementById('prod-modal-title').textContent='제품 추가';document.getElementById('prod-edit-key').value='';document.getElementById('prod-name').value='';document.getElementById('prod-fee').value='';document.getElementById('product-modal').classList.add('open');}
+function openAddProductModal(){document.getElementById('prod-modal-title').textContent=t('product_add_title');document.getElementById('prod-edit-key').value='';document.getElementById('prod-name').value='';document.getElementById('prod-fee').value='';document.getElementById('product-modal').classList.add('open');}
 function openEditProductModal(key){document.getElementById('prod-modal-title').textContent='제품 수정';document.getElementById('prod-edit-key').value=key;document.getElementById('prod-name').value=key;document.getElementById('prod-fee').value=LABOR_FEE[key]||0;document.getElementById('product-modal').classList.add('open');}
 function saveProduct(){
   const name=document.getElementById('prod-name').value.trim();const fee=parseInt(document.getElementById('prod-fee').value)||0;const oldKey=document.getElementById('prod-edit-key').value;
-  if(!name){alert('제품명을 입력해주세요.');return;}
+  if(!name){alert(t('product_name_required'));return;}
   if(oldKey&&oldKey!==name){delete LABOR_FEE[oldKey];PRODUCERS.forEach(p=>{const i=p.capable.indexOf(oldKey);if(i>-1)p.capable[i]=name;});}
   LABOR_FEE[name]=fee;saveData();refreshAllUI();closeModal('product-modal');
 }
-function deleteProduct(key){if(!confirm(`"${key}" 제품을 삭제하시겠습니까?`))return;delete LABOR_FEE[key];PRODUCERS.forEach(p=>{const i=p.capable.indexOf(key);if(i>-1)p.capable.splice(i,1);});saveData();refreshAllUI();}
+function deleteProduct(key){if(!confirm(t('confirm_delete_product',key)))return;delete LABOR_FEE[key];PRODUCERS.forEach(p=>{const i=p.capable.indexOf(key);if(i>-1)p.capable.splice(i,1);});saveData();refreshAllUI();}
 function renderProductList(){
   const search=(document.getElementById('prod-search')?.value||'').toLowerCase();
   const all=Object.keys(LABOR_FEE).filter(k=>!search||k.toLowerCase().includes(search)).sort();
@@ -1215,18 +1451,18 @@ function renderProductList(){
   document.getElementById('product-tbody').innerHTML=all.map(k=>`<tr>
     <td style="font-weight:500">${k}</td><td>${LABOR_FEE[k].toLocaleString()} UGX</td><td>${capCount[k]||0}명</td>
     <td><div style="display:flex;gap:4px">
-      <button class="btn btn-sm" onclick="openEditProductModal('${k.replace(/'/g,"\\'")}')">수정</button>
-      <button class="btn btn-sm btn-d" onclick="deleteProduct('${k.replace(/'/g,"\\'")}')">삭제</button>
+      <button class="btn btn-sm" onclick="openEditProductModal('${k.replace(/'/g,"\\'")}')">${t('edit_btn_sm')}</button>
+      <button class="btn btn-sm btn-d" onclick="deleteProduct('${k.replace(/'/g,"\\'")}')">${t('delete_btn')}</button>
     </div></td></tr>`).join('');
 }
 function renderDataStats(){
   const activeHMP=PRODUCERS.filter(p=>p.capable.length>0).length;
   document.getElementById('data-stats').innerHTML=`
-    <div class="smc"><div class="lbl">전체 HMP</div><div class="val">${PRODUCERS.length}명</div></div>
-    <div class="smc"><div class="lbl">생산 가능 HMP</div><div class="val">${activeHMP}명</div></div>
-    <div class="smc"><div class="lbl">QC 누적 이력</div><div class="val">${(window.QC_HISTORY||[]).length}개월</div></div>
-    <div class="smc"><div class="lbl">등록 제품 수</div><div class="val">${Object.keys(LABOR_FEE).length}개</div></div>`;
-  try{const d=JSON.parse(localStorage.getItem('sdc_hmp_data')||'{}');document.getElementById('last-modified').textContent=d.lastModified?new Date(d.lastModified).toLocaleString('ko-KR'):'없음';}catch(e){}
+    <div class="smc"><div class="lbl">${t('total_hmp')}</div><div class="val">${PRODUCERS.length}${t('people_suffix')}</div></div>
+    <div class="smc"><div class="lbl">${t('capable_hmp')}</div><div class="val">${activeHMP}${t('people_suffix')}</div></div>
+    <div class="smc"><div class="lbl">${t('qc_history_label')}</div><div class="val">${(window.QC_HISTORY||[]).length}${t('month_unit')}</div></div>
+    <div class="smc"><div class="lbl">${t('registered_products')}</div><div class="val">${Object.keys(LABOR_FEE).length}</div></div>`;
+  try{const d=JSON.parse(localStorage.getItem('sdc_hmp_data')||'{}');document.getElementById('last-modified').textContent=d.lastModified?new Date(d.lastModified).toLocaleString(currentLang==='ko'?'ko-KR':'en-US'):t('none_word');}catch(e){}
 }
 
 // ── 업로드 탭 전환 ──
@@ -1307,7 +1543,7 @@ function parseHMPExcel(wb,resultEl){
     newProducers.push({category:currentCategory||'HMP',batch:parseInt(batch),name:String(name).trim(),capable});
   }
 
-  if(!newProducers.length){resultEl.innerHTML='<div class="upload-result-err">❌ 파싱된 HMP가 없습니다. 파일 형식을 확인해주세요.</div>';return;}
+  if(!newProducers.length){resultEl.innerHTML=`<div class="upload-result-err">${t('no_hmp_parsed')}</div>`;return;}
 
   PRODUCERS=newProducers;
   saveData();refreshAllUI();
@@ -1408,7 +1644,7 @@ function parseQCExcel(wb,resultEl){
 
   const monthCount=history.length;
   const avg=Math.round(Object.values(hmpStats).filter(d=>d.submitted>0).reduce((s,d)=>s+d.rate,0)/Object.values(hmpStats).filter(d=>d.submitted>0).length);
-  resultEl.innerHTML=`<div class="upload-result-ok">✅ [${wsName}] QC 이력 ${count}명 업로드 완료 — 누적 ${monthCount}개월 데이터 반영<br>
+  resultEl.innerHTML=`<div class="upload-result-ok">${t('qc_updated',wsName,count,monthCount)}<br>
     <span style="font-size:12px">이번 월 평균 통과율: ${avg}% · 사용 가능한 시트: ${wb.SheetNames.join(', ')}</span></div>`;
 }
 
@@ -1502,6 +1738,7 @@ function resetFilter(){
 document.addEventListener('click',e=>{if(!e.target.closest('#capable-suggest')&&!e.target.closest('#capable-wrap'))document.getElementById('capable-suggest').innerHTML='';});
 document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
 
+applyI18n();
 loadData();
 rebuildProductSelect();
 setupHmpFilters();
