@@ -84,6 +84,26 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 .bar-fill{height:100%;border-radius:4px;transition:width .4s}
 .bar-target{position:absolute;top:0;height:100%;width:1.5px;background:var(--red);opacity:.7}
 .elig-info{font-size:12px;color:var(--text2);min-height:18px;margin-bottom:10px;padding:4px 0}
+.filter-panel{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;margin-bottom:10px}
+.filter-panel .fp-title{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.filter-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;align-items:center}
+.filter-row .lbl{font-size:11px;font-weight:600;color:var(--text2);min-width:52px}
+.ftag{font-size:11px;padding:3px 9px;border-radius:20px;cursor:pointer;border:1px solid var(--border2);background:var(--surface);color:var(--text2);transition:all .15s;user-select:none}
+.ftag:hover{border-color:var(--accent);color:var(--accent)}
+.ftag.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ftag.cat-on{background:#7B4F9A;color:#fff;border-color:#7B4F9A}
+.ftag.ind-on{background:#1A6B8A;color:#fff;border-color:#1A6B8A}
+.orow{display:grid;grid-template-columns:1fr 80px 100px 26px;align-items:start;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+.filter-badge{font-size:10px;padding:1px 6px;border-radius:20px;display:inline-block;margin-top:2px}
+.fb-all{background:#EAF3EE;color:#2B5C3F}
+.fb-batch{background:#E6F1FB;color:#1a5fa8}
+.fb-cat{background:#F3E8FF;color:#6B21A8}
+.fb-ind{background:#E0F2F1;color:#00574B}
+.ind-select-wrap{max-height:140px;overflow-y:auto;border:1px solid var(--border2);border-radius:var(--radius);padding:4px;background:var(--surface);display:none}
+.ind-select-wrap.open{display:block}
+.ind-item{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:4px;cursor:pointer;font-size:12px}
+.ind-item:hover{background:var(--surface2)}
+.ind-item input{width:14px;height:14px;cursor:pointer;margin:0}
 .empty{text-align:center;padding:28px;color:var(--text3);font-size:13px}
 .month-row{display:flex;align-items:center;gap:10px;margin-bottom:18px}
 .month-row label{font-size:13px;font-weight:500;color:var(--text2)}
@@ -197,6 +217,40 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
       <div class="fg"><label>비고</label><input type="text" id="inp-note" placeholder="예: Use Offcut"></div>
     </div>
     <div class="elig-info" id="elig-info"></div>
+
+    <!-- 배분 대상 필터 -->
+    <div class="filter-panel">
+      <div class="fp-title">
+        🎯 배분 대상 설정
+        <span style="font-size:11px;font-weight:400;color:var(--text3)">(설정 안 하면 생산 가능한 전체 HMP에 배분)</span>
+      </div>
+      <div class="filter-row">
+        <span class="lbl">기수</span>
+        <div id="fp-batch" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+      </div>
+      <div class="filter-row">
+        <span class="lbl">구분</span>
+        <div id="fp-cat" style="display:flex;flex-wrap:wrap;gap:5px"></div>
+      </div>
+      <div class="filter-row" style="align-items:flex-start">
+        <span class="lbl" style="padding-top:4px">개인</span>
+        <div style="flex:1">
+          <button class="btn btn-sm" onclick="toggleIndSelect()" id="ind-toggle-btn" style="font-size:11px;margin-bottom:4px">
+            ▾ 개인 선택 (0명 선택됨)
+          </button>
+          <div class="ind-select-wrap" id="ind-select-wrap">
+            <div style="padding:4px 6px;border-bottom:1px solid var(--border);display:flex;gap:6px;margin-bottom:4px">
+              <button class="btn btn-sm" style="font-size:11px" onclick="selectAllInd(true)">전체 선택</button>
+              <button class="btn btn-sm" style="font-size:11px" onclick="selectAllInd(false)">전체 해제</button>
+              <input type="text" placeholder="이름 검색..." oninput="filterIndList(this.value)" style="flex:1;font-size:11px;padding:2px 6px">
+            </div>
+            <div id="ind-list"></div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--accent);margin-top:4px" id="filter-summary"></div>
+    </div>
+
     <div style="display:flex;gap:8px">
       <button class="btn btn-p" onclick="addOrder()">추가</button>
       <button class="btn" onclick="loadSample()">샘플 불러오기</button>
@@ -653,7 +707,7 @@ function go(t){
   if(t==='hmp')renderHMPList();
   if(t==='manage'){renderProductList();renderDataStats();}
 }
-function refreshAllUI(){rebuildProductSelect();setupHmpFilters();renderHMPList();renderOrders();renderProductList();renderDataStats();}
+function refreshAllUI(){rebuildProductSelect();setupHmpFilters();renderHMPList();renderOrders();renderProductList();renderDataStats();setupOrderFilterPanel();}
 
 // ── 제품 선택 ──
 function rebuildProductSelect(){
@@ -683,11 +737,28 @@ function addOrder(){
   const fee=parseInt(document.getElementById('inp-fee').value)||(LABOR_FEE[k]||0);
   const note=document.getElementById('inp-note').value;
   if(!k||!qty){alert('제품과 수량을 입력해주세요.');return;}
+  // 현재 필터 상태 수집
+  const selBatches=getSelectedBatches();
+  const selCats=getSelectedCats();
+  const selInds=getSelectedInds();
+  const filter={
+    batches:selBatches,
+    cats:selCats,
+    inds:selInds
+  };
   const ex=orders.find(o=>o.key===k);
-  if(ex)ex.qty+=qty; else orders.push({name:k,key:k,qty,fee,note});
+  if(ex){
+    ex.qty+=qty;
+    // 필터가 설정된 경우 기존 것 덮어쓰기
+    if(selBatches.length||selCats.length||selInds.length) ex.filter=filter;
+  } else {
+    orders.push({name:k,key:k,qty,fee,note,filter});
+  }
   renderOrders();saveOrders();
   ['inp-qty','inp-fee','inp-note'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('inp-prod').value='';document.getElementById('elig-info').textContent='';
+  document.getElementById('inp-prod').value='';
+  document.getElementById('elig-info').textContent='';
+  resetFilter();
 }
 function removeOrder(i){orders.splice(i,1);renderOrders();saveOrders();}
 function renderOrders(){
@@ -695,13 +766,26 @@ function renderOrders(){
   const el=document.getElementById('olist');
   if(!orders.length){el.innerHTML='<div class="empty">주문을 추가하거나 샘플을 불러오세요</div>';document.getElementById('ototal').textContent='';return;}
   const tot=orders.reduce((s,o)=>s+o.qty*o.fee,0);
-  el.innerHTML=orders.map((o,i)=>`<div class="orow">
-    <span style="font-weight:500">${o.name}</span>
-    <span style="color:var(--text2)">${o.qty.toLocaleString()}</span>
-    <span style="color:var(--text2);font-size:12px">${(o.qty*o.fee).toLocaleString()} UGX</span>
-    <button class="btn btn-d btn-sm" onclick="removeOrder(${i})">×</button>
-  </div>`).join('');
+  el.innerHTML=orders.map((o,i)=>{
+    const fb=getFilterBadge(o.filter);
+    return`<div class="orow">
+      <div><span style="font-weight:500">${o.name}</span><br>${fb}</div>
+      <span style="color:var(--text2)">${o.qty.toLocaleString()}</span>
+      <span style="color:var(--text2);font-size:12px">${(o.qty*o.fee).toLocaleString()} UGX</span>
+      <button class="btn btn-d btn-sm" onclick="removeOrder(${i})" style="align-self:center">×</button>
+    </div>`;
+  }).join('');
   document.getElementById('ototal').textContent=`총 노동비 ${tot.toLocaleString()} UGX`;
+}
+
+function getFilterBadge(filter){
+  if(!filter||(!filter.batches?.length&&!filter.cats?.length&&!filter.inds?.length))
+    return'<span class="filter-badge fb-all">전체 HMP</span>';
+  const parts=[];
+  if(filter.batches?.length) parts.push(`<span class="filter-badge fb-batch">${filter.batches.map(b=>b+'기').join(' ')}</span>`);
+  if(filter.cats?.length) parts.push(`<span class="filter-badge fb-cat">${filter.cats.join(' ')}</span>`);
+  if(filter.inds?.length) parts.push(`<span class="filter-badge fb-ind">개인 ${filter.inds.length}명</span>`);
+  return parts.join(' ');
 }
 function loadSample(){
   orders=[
@@ -718,31 +802,49 @@ function loadSample(){
 }
 
 // ── PLAN (QC 가중치 적용) ──
+function applyOrderFilter(pool, filter){
+  if(!filter||(!(filter.batches&&filter.batches.length)&&!(filter.cats&&filter.cats.length)&&!(filter.inds&&filter.inds.length))) return pool;
+  return pool.filter(p=>{
+    // 개인 직접 지정: 명단에 있으면 무조건 포함
+    if(filter.inds&&filter.inds.length&&filter.inds.includes(p.name)) return true;
+    // 개인 명단이 있는데 해당 없으면 제외
+    if(filter.inds&&filter.inds.length&&!filter.inds.includes(p.name)) return false;
+    // 기수 필터
+    const bOk=!filter.batches||!filter.batches.length||filter.batches.includes(p.batch);
+    // 카테고리 필터
+    const cOk=!filter.cats||!filter.cats.length||filter.cats.includes(p.category);
+    return bOk&&cOk;
+  });
+}
+
 function equalizeDistribute(orders,producers){
   const pFee={};producers.forEach(p=>pFee[p.name]=0);
   const assign={};producers.forEach(p=>assign[p.name]={});
   const weights={};producers.forEach(p=>weights[p.name]=calcQcWeight(p.name));
   const totalLabor=orders.reduce((s,o)=>s+o.qty*o.fee,0);
   const activeP=producers.filter(p=>p.capable.length>0);
-  // 가중치 합산으로 목표 조정
-  const totalWeight=activeP.reduce((s,p)=>s+weights[p.name],0);
   const baseTarget=activeP.length>0?totalLabor/activeP.length:0;
-  // 각 HMP의 개인 목표 = baseTarget * weight
   const personalTarget={};
   activeP.forEach(p=>personalTarget[p.name]=baseTarget*weights[p.name]);
+
+  // 주문별 eligible: 생산가능 + 배분대상 필터 동시 적용
   const eligible={};
-  orders.forEach(o=>{eligible[o.key]=producers.filter(p=>p.capable.includes(o.key)).map(p=>p.name);});
+  orders.forEach(o=>{
+    const capable=producers.filter(p=>p.capable.includes(o.key));
+    const filtered=applyOrderFilter(capable, o.filter);
+    eligible[o.key]=filtered.map(p=>p.name);
+  });
+
   const sorted=[...orders].sort((a,b)=>(eligible[a.key]?.length||0)-(eligible[b.key]?.length||0));
   const remaining={};orders.forEach(o=>remaining[o.key]=o.qty);
   const unassigned={};
   sorted.forEach(o=>{
     const elig=eligible[o.key]||[];
-    if(!elig.length){unassigned[o.key]=o.qty;return;}
+    if(!elig.length){unassigned[o.key]={qty:o.qty,filter:o.filter};return;}
     let rem=remaining[o.key],iter=0;
     while(rem>0&&iter<100000){
       iter++;
       const es=elig.slice().sort((a,b)=>{
-        // 목표 대비 부족분 비율로 정렬
         const aGap=(personalTarget[a]||baseTarget)-pFee[a];
         const bGap=(personalTarget[b]||baseTarget)-pFee[b];
         return bGap-aGap;
@@ -778,8 +880,14 @@ function renderPlan(){
     <div class="smc"><div class="lbl">총 생산 수량</div><div class="val">${orders.reduce((s,o)=>s+o.qty,0).toLocaleString()}</div></div>
     <div class="smc"><div class="lbl">총 노동비</div><div class="val">${Math.round(totalLabor/10000)}만</div></div>
     <div class="smc"><div class="lbl">QC 반영 / 참여 HMP</div><div class="val">${mode==='none'?'미적용':mode==='soft'?'약':'중강'} · ${av.length}명</div></div>`;
-  document.getElementById('plan-warns').innerHTML=Object.entries(unassigned).filter(([,v])=>v>0)
-    .map(([k,q])=>`<div class="alert alert-warn">⚠ <strong>${k}</strong> ${q}pcs — 생산 가능 HMP 없음</div>`).join('');
+  document.getElementById('plan-warns').innerHTML=Object.entries(unassigned).filter(([,v])=>v.qty>0)
+    .map(([k,v])=>{
+      const fb=getFilterBadge(v.filter);
+      const reason=(v.filter&&((v.filter.batches&&v.filter.batches.length)||(v.filter.cats&&v.filter.cats.length)||(v.filter.inds&&v.filter.inds.length)))
+        ?`설정된 배분 대상(${fb}) 중 이 제품을 생산 가능한 HMP가 없음`
+        :'생산 가능 HMP 없음';
+      return`<div class="alert alert-warn">⚠ <strong>${k}</strong> ${v.qty}pcs — ${reason}</div>`;
+    }).join('');
   activeBatch=null;renderBatchFilter();renderFeeChart(null);renderPlanTable(null);
 }
 
@@ -1304,6 +1412,92 @@ function parseQCExcel(wb,resultEl){
     <span style="font-size:12px">이번 월 평균 통과율: ${avg}% · 사용 가능한 시트: ${wb.SheetNames.join(', ')}</span></div>`;
 }
 
+// ── 배분 대상 필터 패널 ──
+let filterState={batches:new Set(),cats:new Set(),inds:new Set()};
+
+function setupOrderFilterPanel(){
+  const batches=[...new Set(PRODUCERS.map(p=>p.batch))].sort((a,b)=>a-b);
+  document.getElementById('fp-batch').innerHTML=batches.map(b=>
+    `<span class="ftag" data-b="${b}" onclick="toggleBatchFilter(${b},this)">${b}기</span>`).join('');
+
+  const cats=[...new Set(PRODUCERS.map(p=>p.category).filter(Boolean))];
+  document.getElementById('fp-cat').innerHTML=cats.map(c=>
+    `<span class="ftag cat" data-c="${c.replace(/"/g,'')}" onclick="toggleCatFilter('${c.replace(/'/g,"\\'")}',this)">${c}</span>`).join('');
+
+  renderIndList();
+}
+
+function toggleBatchFilter(b,el){
+  if(filterState.batches.has(b)) filterState.batches.delete(b);
+  else filterState.batches.add(b);
+  el.classList.toggle('on');
+  updateFilterSummary();
+}
+function toggleCatFilter(c,el){
+  if(filterState.cats.has(c)) filterState.cats.delete(c);
+  else filterState.cats.add(c);
+  el.classList.toggle('cat-on');
+  updateFilterSummary();
+}
+
+function toggleIndSelect(){
+  document.getElementById('ind-select-wrap').classList.toggle('open');
+}
+
+function renderIndList(searchTerm){
+  const term=(searchTerm||'').toLowerCase();
+  const list=PRODUCERS.filter(p=>!term||p.name.toLowerCase().includes(term));
+  document.getElementById('ind-list').innerHTML=list.map(p=>`
+    <label class="ind-item">
+      <input type="checkbox" data-name="${p.name.replace(/"/g,'')}" ${filterState.inds.has(p.name)?'checked':''} onchange="toggleIndFilter('${p.name.replace(/'/g,"\\'")}',this.checked)">
+      <span class="bdg ${bCls(p.batch)}" style="font-size:9px">${p.batch}</span>
+      ${p.name}
+    </label>`).join('');
+}
+function filterIndList(val){renderIndList(val);}
+
+function toggleIndFilter(name,checked){
+  if(checked) filterState.inds.add(name);
+  else filterState.inds.delete(name);
+  updateFilterSummary();
+}
+
+function selectAllInd(select){
+  const visible=document.querySelectorAll('#ind-list input[type=checkbox]');
+  visible.forEach(cb=>{
+    const name=cb.dataset.name;
+    cb.checked=select;
+    if(select) filterState.inds.add(name);
+    else filterState.inds.delete(name);
+  });
+  updateFilterSummary();
+}
+
+function updateFilterSummary(){
+  const btnLabel=`▾ 개인 선택 (${filterState.inds.size}명 선택됨)`;
+  document.getElementById('ind-toggle-btn').textContent=btnLabel;
+  const parts=[];
+  if(filterState.batches.size) parts.push(`기수: ${[...filterState.batches].sort((a,b)=>a-b).map(b=>b+'기').join(', ')}`);
+  if(filterState.cats.size) parts.push(`구분: ${[...filterState.cats].join(', ')}`);
+  if(filterState.inds.size) parts.push(`개인: ${filterState.inds.size}명`);
+  document.getElementById('filter-summary').textContent=parts.length
+    ?`✓ 설정됨 — ${parts.join(' / ')}`
+    :'';
+}
+
+function getSelectedBatches(){return[...filterState.batches];}
+function getSelectedCats(){return[...filterState.cats];}
+function getSelectedInds(){return[...filterState.inds];}
+
+function resetFilter(){
+  filterState={batches:new Set(),cats:new Set(),inds:new Set()};
+  document.querySelectorAll('#fp-batch .ftag').forEach(el=>el.classList.remove('on'));
+  document.querySelectorAll('#fp-cat .ftag').forEach(el=>el.classList.remove('cat-on'));
+  document.querySelectorAll('#ind-list input[type=checkbox]').forEach(cb=>cb.checked=false);
+  document.getElementById('ind-select-wrap').classList.remove('open');
+  updateFilterSummary();
+}
+
 // ── INIT ──
 document.addEventListener('click',e=>{if(!e.target.closest('#capable-suggest')&&!e.target.closest('#capable-wrap'))document.getElementById('capable-suggest').innerHTML='';});
 document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
@@ -1313,6 +1507,7 @@ rebuildProductSelect();
 setupHmpFilters();
 renderHMPList();
 renderOrders();
+setupOrderFilterPanel();
 updateQcSettingDesc();
 // 저장된 설정 복원
 document.getElementById('qc-weight-mode').value=settings.qcWeightMode;
