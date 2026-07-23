@@ -154,6 +154,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
     <button class="tab active" onclick="go('order')" data-i18n="tab_order">📋 주문 입력</button>
     <button class="tab" onclick="go('plan')" data-i18n="tab_plan">📊 생산 계획</button>
     <button class="tab" onclick="go('qc')" data-i18n="tab_qc">✅ QC 이력</button>
+    <button class="tab" onclick="go('engagement')" data-i18n="tab_engagement">📈 참여 현황</button>
     <button class="tab" onclick="go('hmp')" data-i18n="tab_hmp">👥 HMP 현황</button>
     <button class="tab" onclick="go('manage')" data-i18n="tab_manage">⚙️ 데이터 관리</button>
   </div>
@@ -201,6 +202,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
           <option value="0.9" data-i18n="qc_decay_strong">강하게 (최신 월 90%, 이전 월 81%, 73%...)</option>
           <option value="0.8" selected data-i18n="qc_decay_medium">중간 (최신 월 80%, 이전 월 64%, 51%...)</option>
           <option value="0.7" data-i18n="qc_decay_soft">약하게 (최신 월 70%, 이전 월 49%, 34%...)</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label data-i18n="engagement_weight_label">참여도 반영 강도</label>
+        <select id="engagement-weight" onchange="saveSettings()">
+          <option value="none" data-i18n="eng_none">반영 안 함</option>
+          <option value="soft" selected data-i18n="eng_soft">약하게 (±15%)</option>
+          <option value="medium" data-i18n="eng_medium">중간 (±30%)</option>
+          <option value="strong" data-i18n="eng_strong">강하게 (±50%)</option>
         </select>
       </div>
     </div>
@@ -348,6 +358,35 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
   </div>
 </div>
 
+<!-- 참여 현황 -->
+<div id="s-engagement" class="sec">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      <span class="ct" style="margin:0" data-i18n="eng_by_hmp_title">📈 HMP별 참여 현황</span>
+      <span style="font-size:12px;color:var(--text2)" data-i18n="eng_period_label">(2026년 1월~6월 기준)</span>
+    </div>
+    <div class="smg" id="eng-summary-grid"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+      <div class="frow" id="eng-batch-filter" style="margin:0"><span style="font-size:12px;color:var(--text2);font-weight:500" data-i18n="batch_colon">기수:</span></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:12px;color:var(--text2)" data-i18n="sort_label">정렬:</span>
+        <select id="eng-sort" onchange="renderEngagementList()" style="width:auto;font-size:12px;padding:4px 8px">
+          <option value="eng-hi" data-i18n="eng_sort_hi">참여도 높은순</option>
+          <option value="eng-lo" data-i18n="eng_sort_lo">참여도 낮은순</option>
+          <option value="qty" data-i18n="eng_sort_qty">총 생산량 많은순</option>
+          <option value="months" data-i18n="eng_sort_months">활동 개월수 많은순</option>
+          <option value="batch" data-i18n="sort_batch">기수순</option>
+        </select>
+      </div>
+    </div>
+    <div id="eng-list"></div>
+  </div>
+  <div class="card">
+    <div class="ct" data-i18n="eng_dist_title">참여도 분포</div>
+    <div id="eng-dist-chart"></div>
+  </div>
+</div>
+
 <!-- HMP 현황 -->
 <div id="s-hmp" class="sec">
   <div class="card">
@@ -445,6 +484,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
       <button class="upload-tab active" onclick="switchUploadTab('hmp')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;border-bottom:2px solid var(--accent);margin-bottom:-2px;color:var(--accent);font-family:inherit" data-i18n="utab_hmp">HMP 명단</button>
       <button class="upload-tab" onclick="switchUploadTab('labor')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit" data-i18n="utab_labor">노동비</button>
       <button class="upload-tab" onclick="switchUploadTab('qc')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit" data-i18n="utab_qc">QC 이력</button>
+      <button class="upload-tab" onclick="switchUploadTab('engagement')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit" data-i18n="utab_engagement">참여도</button>
       <button class="upload-tab" onclick="switchUploadTab('json')" style="padding:7px 16px;font-size:13px;font-weight:500;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:inherit" data-i18n="utab_json">JSON 백업</button>
     </div>
 
@@ -505,6 +545,24 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
       <div id="qc-upload-result" style="margin-top:10px"></div>
     </div>
 
+    <!-- 참여도 데이터 업로드 -->
+    <div id="utab-engagement" class="utab-content" style="display:none">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px">
+        <strong style="color:var(--text)" data-i18n="eng_upload_filename">생산자별 월별 제품생산 수량 상세내역.xlsx</strong> <span data-i18n="format_word">형식</span><br>
+        <span data-i18n="eng_upload_desc">시트 1개, 행: "(기수) 이름", 열: January~December 월별 생산수량, 마지막 열: Total</span>
+      </div>
+      <div id="engagement-drop-zone" class="drop-zone" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event,'engagement')">
+        <div style="font-size:28px;margin-bottom:8px">📂</div>
+        <div style="font-size:13px;font-weight:500;margin-bottom:4px" data-i18n="drag_excel_here">엑셀 파일을 여기에 드래그하거나</div>
+        <label style="cursor:pointer;color:var(--accent);font-size:13px;font-weight:500">
+          <span data-i18n="click_to_select">클릭하여 파일 선택</span>
+          <input type="file" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(event,'engagement')">
+        </label>
+      </div>
+      <div id="engagement-upload-result" style="margin-top:10px"></div>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px" data-i18n="eng_overwrite_warn">⚠ 기존 참여도 데이터를 새 파일 내용으로 완전히 덮어씁니다. 매월 누적된 최신 파일을 업로드하세요.</div>
+    </div>
+
     <!-- JSON 백업 복원 -->
     <div id="utab-json" class="utab-content" style="display:none">
       <div style="font-size:13px;color:var(--text2);margin-bottom:10px" data-i18n="json_restore_hint">💾 백업 버튼으로 다운로드한 JSON 파일의 내용을 붙여넣으세요.</div>
@@ -527,6 +585,9 @@ const DEFAULT_LABOR={"Gloria bag(L)":10000,"Gloria bag(S)":10000,"Elephant bag(L
 // ── QC 데이터 (May 2026) ──
 // 이름 매핑: QC 파일 이름 → PRODUCERS 이름 (부분 일치로 처리)
 const QC_DATA_MAY={"Fahima Birungi":{"batch":1,"submitted":30,"qcPass":22,"rate":73.3,"products":[{"product":"Rope Head Band","submitted":30,"qc_pass":22}]},"Grace Kityo Nababi":{"batch":1,"submitted":34,"qcPass":34,"rate":100.0,"products":[{"product":"Cup holder","submitted":16,"qc_pass":16},{"product":"Shoppers Bag(Ecobag) v3","submitted":18,"qc_pass":18}]},"Josephine Nagawa":{"batch":1,"submitted":10,"qcPass":10,"rate":100.0,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Nabaasa Monica":{"batch":1,"submitted":10,"qcPass":10,"rate":100.0,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Nambooze Robinah":{"batch":1,"submitted":45,"qcPass":36,"rate":80.0,"products":[{"product":"Rope Head Band","submitted":35,"qc_pass":26},{"product":"Gloria bag (L)","submitted":10,"qc_pass":10}]},"Prossy Mutesi":{"batch":1,"submitted":46,"qcPass":27,"rate":58.7,"products":[{"product":"Fortune Fish (L)","submitted":46,"qc_pass":27}]},"Alelo Susan":{"batch":2,"submitted":12,"qcPass":5,"rate":41.7,"products":[{"product":"Dolphin (S)","submitted":4,"qc_pass":0},{"product":"Whale (S)","submitted":4,"qc_pass":2},{"product":"Seahorse (S)","submitted":4,"qc_pass":3}]},"Amina Ajambo":{"batch":2,"submitted":16,"qcPass":8,"rate":50.0,"products":[{"product":"Seahorse (S)","submitted":9,"qc_pass":8},{"product":"Picnic bag","submitted":3,"qc_pass":0},{"product":"Square Pouch","submitted":4,"qc_pass":0}]},"Babirye Shakirah":{"batch":2,"submitted":6,"qcPass":6,"rate":100.0,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":4,"qc_pass":4},{"product":"Fortune Fish (S)","submitted":2,"qc_pass":2}]},"Fatuma Aisha":{"batch":2,"submitted":72,"qcPass":85,"rate":100.0,"products":[{"product":"Seahorse (S)","submitted":50,"qc_pass":37},{"product":"Whale (S)","submitted":8,"qc_pass":8},{"product":"Jerrycan bag","submitted":9,"qc_pass":9}]},"Kiconco Benitah":{"batch":2,"submitted":20,"qcPass":18,"rate":90.0,"products":[{"product":"Apron","submitted":15,"qc_pass":13},{"product":"Upcycled Shoulder Bag","submitted":5,"qc_pass":5}]},"Lakot Dalina":{"batch":2,"submitted":50,"qcPass":6,"rate":12.0,"products":[{"product":"Hair Band_V2","submitted":50,"qc_pass":6}]},"Nakalyango Fatumah":{"batch":2,"submitted":15,"qcPass":16,"rate":100.0,"products":[{"product":"Turtle (L)","submitted":15,"qc_pass":10}]},"Nampima Gladys":{"batch":2,"submitted":56,"qcPass":44,"rate":78.6,"products":[{"product":"Seahorse (S)","submitted":51,"qc_pass":10},{"product":"Leaf keyring","submitted":5,"qc_pass":4}]},"Natuhwera Fatia":{"batch":2,"submitted":19,"qcPass":9,"rate":47.4,"products":[{"product":"Tote bag","submitted":8,"qc_pass":2},{"product":"Whale (L)","submitted":11,"qc_pass":7}]},"Fatumah Nakawemba":{"batch":2,"submitted":50,"qcPass":0,"rate":0.0,"products":[{"product":"Fortune fish (S)","submitted":50,"qc_pass":0}]},"Atim Brenda":{"batch":3,"submitted":19,"qcPass":35,"rate":100.0,"products":[{"product":"Turtle (L)","submitted":19,"qc_pass":8},{"product":"Shoppers Bag v3","submitted":0,"qc_pass":27}]},"Namubiru Marion":{"batch":3,"submitted":20,"qcPass":39,"rate":100.0,"products":[{"product":"Classic Wallet","submitted":20,"qc_pass":20}]},"Namukwaya Mariam":{"batch":3,"submitted":6,"qcPass":6,"rate":100.0,"products":[{"product":"Picnic bag","submitted":3,"qc_pass":3},{"product":"Square Pouch","submitted":3,"qc_pass":3}]},"Mercy Anet":{"batch":3,"submitted":12,"qcPass":0,"rate":0.0,"products":[{"product":"Book bag v2","submitted":12,"qc_pass":0}]},"Naigaga Bitamisi":{"batch":3,"submitted":26,"qcPass":0,"rate":0.0,"products":[{"product":"Shoppers Bag v2","submitted":26,"qc_pass":0}]},"Alituha Daize":{"batch":4,"submitted":0,"qcPass":19,"rate":100.0,"products":[{"product":"Turtle (L)","submitted":0,"qc_pass":19}]},"Katushabe Flavia":{"batch":4,"submitted":27,"qcPass":27,"rate":100.0,"products":[{"product":"Shoppers Bag v3","submitted":27,"qc_pass":27}]},"Nabayego Brendah":{"batch":4,"submitted":100,"qcPass":41,"rate":41.0,"products":[{"product":"Head band","submitted":97,"qc_pass":41},{"product":"Picnic bag","submitted":3,"qc_pass":0}]},"Shamsa Namaganda":{"batch":4,"submitted":10,"qcPass":10,"rate":100.0,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Muhirwe Diana":{"batch":4,"submitted":29,"qcPass":0,"rate":0.0,"products":[{"product":"Book bag v2","submitted":29,"qc_pass":0}]},"Akello Vicky Joan":{"batch":5,"submitted":30,"qcPass":0,"rate":0.0,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":0}]},"Alezoyo Franceca":{"batch":5,"submitted":24,"qcPass":21,"rate":87.5,"products":[{"product":"Dolphin (S)","submitted":24,"qc_pass":13}]},"Aloyo Nancy":{"batch":5,"submitted":15,"qcPass":18,"rate":100.0,"products":[{"product":"Dolphin (S)","submitted":15,"qc_pass":9}]},"Chelengat Ritah":{"batch":5,"submitted":30,"qcPass":23,"rate":76.7,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":23}]},"Grace Nikuze":{"batch":5,"submitted":12,"qcPass":11,"rate":91.7,"products":[{"product":"Whale (S)","submitted":12,"qc_pass":0}]},"Karungi Kebirungi":{"batch":5,"submitted":49,"qcPass":22,"rate":44.9,"products":[{"product":"Kitenge straps","submitted":49,"qc_pass":22}]},"Lamwaka Josephine":{"batch":5,"submitted":47,"qcPass":47,"rate":100.0,"products":[{"product":"Kitenge straps","submitted":47,"qc_pass":47}]},"Nakisige Esther":{"batch":5,"submitted":26,"qcPass":6,"rate":23.1,"products":[{"product":"Book bag v2","submitted":26,"qc_pass":6}]},"Namulinda Zakiah":{"batch":5,"submitted":30,"qcPass":7,"rate":23.3,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":7}]},"Nandudu Halima":{"batch":5,"submitted":34,"qcPass":0,"rate":0.0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":0},{"product":"Two Pocket Pouch","submitted":4,"qc_pass":0}]},"Prisca Alimocan":{"batch":5,"submitted":58,"qcPass":27,"rate":46.6,"products":[{"product":"Basic Pouch","submitted":50,"qc_pass":17},{"product":"Whale (S)","submitted":8,"qc_pass":8}]},"Akasansira Evelyne":{"batch":6,"submitted":43,"qcPass":4,"rate":9.3,"products":[{"product":"Kitenge straps","submitted":43,"qc_pass":4}]},"Angucia Lillian":{"batch":6,"submitted":30,"qcPass":0,"rate":0.0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":0}]},"Hidri Tekleberhan":{"batch":6,"submitted":50,"qcPass":0,"rate":0.0,"products":[{"product":"Fortune Fish (S)","submitted":50,"qc_pass":0}]},"Namiro Deborah":{"batch":6,"submitted":35,"qcPass":12,"rate":34.3,"products":[{"product":"Kitenge straps","submitted":35,"qc_pass":12}]},"Namulwasira Mayimuna":{"batch":6,"submitted":30,"qcPass":3,"rate":10.0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":3}]},"Tino Peace Rhodah":{"batch":6,"submitted":30,"qcPass":1,"rate":3.3,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":1}]}};
+
+const DEFAULT_ENGAGEMENT_DATA={"BIRUNGI FAHIMA": {"total": 301, "months": 6, "monthly": {"January": 100, "February": 95, "March": 5, "April": 36, "May": 22, "June": 43}, "engagement": 0.6983}, "GRACE NABABI KITYO": {"total": 328, "months": 5, "monthly": {"January": 131, "February": 36, "March": 43, "April": 84, "May": 34}, "engagement": 0.684}, "NAGAWA JOSEPHINE": {"total": 252, "months": 6, "monthly": {"January": 87, "February": 76, "March": 8, "April": 34, "May": 10, "June": 37}, "engagement": 0.6335}, "NABAASA MONICA": {"total": 259, "months": 5, "monthly": {"January": 100, "February": 103, "April": 19, "May": 10, "June": 27}, "engagement": 0.5927}, "NAMBOOZE ROBINAH": {"total": 529, "months": 6, "monthly": {"January": 154, "February": 116, "March": 8, "April": 121, "May": 48, "June": 82}, "engagement": 1.0}, "MUTESI PROSSY": {"total": 238, "months": 6, "monthly": {"January": 50, "February": 45, "March": 3, "April": 17, "May": 39, "June": 84}, "engagement": 0.6149}, "NAKYANZI RUTH": {"total": 171, "months": 4, "monthly": {"January": 83, "February": 60, "March": 7, "April": 21}, "engagement": 0.4263}, "ALELO SUSAN": {"total": 27, "months": 4, "monthly": {"January": 10, "February": 9, "March": 3, "May": 5}, "engagement": 0.2357}, "AMINA AJAMBO": {"total": 273, "months": 6, "monthly": {"January": 45, "February": 45, "March": 19, "April": 110, "May": 20, "June": 34}, "engagement": 0.6612}, "BABIRYE SHAKIRAH": {"total": 88, "months": 3, "monthly": {"April": 22, "May": 6, "June": 60}, "engagement": 0.2664}, "FATUMA AISHA": {"total": 433, "months": 6, "monthly": {"January": 32, "February": 30, "March": 18, "April": 158, "May": 85, "June": 110}, "engagement": 0.873}, "KICONCO BENITAH": {"total": 190, "months": 6, "monthly": {"January": 74, "February": 20, "March": 8, "April": 42, "May": 32, "June": 14}, "engagement": 0.5514}, "LAKOT DALINA": {"total": 250, "months": 6, "monthly": {"January": 46, "February": 30, "March": 6, "April": 73, "May": 6, "June": 89}, "engagement": 0.6308}, "NAIGINO EDITH": {"total": 41, "months": 1, "monthly": {"February": 41}, "engagement": 0.1043}, "NAKALYANGO FATUMAH": {"total": 236, "months": 5, "monthly": {"January": 97, "February": 25, "April": 65, "May": 30, "June": 19}, "engagement": 0.5623}, "NAKAWEMBA FATUMA": {"total": 143, "months": 4, "monthly": {"February": 5, "March": 8, "April": 23, "June": 107}, "engagement": 0.3892}, "NAMPIIMA GLADYS": {"total": 364, "months": 5, "monthly": {"January": 47, "February": 37, "March": 88, "April": 148, "May": 44}, "engagement": 0.7317}, "NATUHWERA FATIA": {"total": 234, "months": 5, "monthly": {"January": 44, "February": 45, "April": 70, "May": 23, "June": 52}, "engagement": 0.5596}, "AGABAIRWE RITAH": {"total": 87, "months": 4, "monthly": {"February": 10, "March": 6, "April": 21, "June": 50}, "engagement": 0.3151}, "ATIM BRENDA": {"total": 220, "months": 4, "monthly": {"January": 18, "April": 44, "May": 35, "June": 123}, "engagement": 0.4911}, "BIRUNGI FAZIRA": {"total": 35, "months": 2, "monthly": {"March": 7, "June": 28}, "engagement": 0.1463}, "NAIGAGA BITAMISI": {"total": 27, "months": 3, "monthly": {"March": 5, "April": 3, "June": 19}, "engagement": 0.1857}, "NAKAZIBWE MERCY": {"total": 53, "months": 1, "monthly": {"January": 53}, "engagement": 0.1201}, "MARION NAMUBIRU": {"total": 226, "months": 6, "monthly": {"January": 75, "February": 20, "March": 8, "April": 60, "May": 51, "June": 12}, "engagement": 0.5991}, "NAMUKWAYA MARIAM": {"total": 83, "months": 3, "monthly": {"January": 64, "April": 13, "May": 6}, "engagement": 0.2598}, "NTEGYERIZE MERCY": {"total": 75, "months": 3, "monthly": {"March": 33, "April": 10, "June": 32}, "engagement": 0.2492}, "AKANYONGERA GLORIA": {"total": 5, "months": 1, "monthly": {"February": 5}, "engagement": 0.0566}, "DAISY ALITUHA": {"total": 90, "months": 3, "monthly": {"April": 14, "May": 33, "June": 43}, "engagement": 0.2691}, "ANGELLA GAFAYO": {"total": 37, "months": 2, "monthly": {"April": 17, "June": 20}, "engagement": 0.149}, "KATUSHABE FLAVIA": {"total": 71, "months": 3, "monthly": {"April": 5, "May": 27, "June": 39}, "engagement": 0.244}, "MUHIRWE DIANA": {"total": 53, "months": 3, "monthly": {"January": 33, "February": 10, "April": 10}, "engagement": 0.2201}, "NABAYEGO BRENDAH": {"total": 165, "months": 3, "monthly": {"April": 31, "May": 41, "June": 93}, "engagement": 0.3683}, "RAHMA NASSOZI": {"total": 56, "months": 3, "monthly": {"February": 28, "March": 8, "April": 20}, "engagement": 0.2241}, "NAMAGANDA SHAMSA": {"total": 178, "months": 5, "monthly": {"January": 80, "February": 20, "April": 25, "May": 10, "June": 43}, "engagement": 0.4855}, "Tumuhimbise Michelle Joan": {"total": 54, "months": 2, "monthly": {"April": 14, "June": 40}, "engagement": 0.1715}, "ABBO NANZIRINA": {"total": 42, "months": 3, "monthly": {"March": 2, "April": 5, "June": 35}, "engagement": 0.2056}, "FRANCESCA ALEZOYO": {"total": 173, "months": 5, "monthly": {"February": 21, "March": 13, "April": 39, "May": 22, "June": 78}, "engagement": 0.4789}, "ALOYO NANCY": {"total": 217, "months": 5, "monthly": {"February": 15, "March": 18, "April": 60, "May": 19, "June": 105}, "engagement": 0.5371}, "AWORI BETTY": {"total": 7, "months": 2, "monthly": {"February": 1, "March": 6}, "engagement": 0.1093}, "CHELANGAT RITAH": {"total": 48, "months": 5, "monthly": {"February": 7, "March": 2, "April": 9, "May": 23, "June": 7}, "engagement": 0.3135}, "ANGEL ACHOLA ESTHER": {"total": 72, "months": 4, "monthly": {"February": 10, "March": 3, "April": 24, "June": 35}, "engagement": 0.2953}, "FEVEN KIBROM": {"total": 42, "months": 1, "monthly": {"June": 42}, "engagement": 0.1056}, "KAHENDEKE HILDAH": {"total": 100, "months": 3, "monthly": {"February": 18, "April": 47, "June": 35}, "engagement": 0.2823}, "SOPHIE WANYANA": {"total": 32, "months": 3, "monthly": {"March": 8, "April": 12, "June": 12}, "engagement": 0.1923}, "KARUNGI KEBIRUNGI": {"total": 57, "months": 5, "monthly": {"February": 8, "March": 6, "April": 12, "May": 22, "June": 9}, "engagement": 0.3254}, "LAMWAKA JOSEPHINE": {"total": 183, "months": 5, "monthly": {"February": 40, "March": 21, "April": 27, "May": 47, "June": 48}, "engagement": 0.4922}, "MAKOHA JOAN": {"total": 50, "months": 4, "monthly": {"February": 5, "March": 8, "April": 17, "June": 20}, "engagement": 0.2662}, "NABAKKA AIDAH": {"total": 108, "months": 2, "monthly": {"April": 66, "June": 42}, "engagement": 0.2429}, "NAKISIGE ESTHER": {"total": 45, "months": 4, "monthly": {"March": 4, "April": 15, "May": 6, "June": 20}, "engagement": 0.2595}, "NAMULINDA ZAKIAH": {"total": 95, "months": 5, "monthly": {"February": 24, "March": 4, "April": 40, "May": 7, "June": 20}, "engagement": 0.3757}, "NANDUDU HALIMA": {"total": 8, "months": 1, "monthly": {"June": 8}, "engagement": 0.0606}, "GRACE NIKUZE": {"total": 67, "months": 3, "monthly": {"April": 16, "May": 11, "June": 40}, "engagement": 0.2387}, "PAMELA PINYOLOYA": {"total": 80, "months": 3, "monthly": {"February": 17, "April": 28, "June": 35}, "engagement": 0.2559}, "PRISCA ALIMOCAN": {"total": 241, "months": 5, "monthly": {"February": 15, "March": 8, "April": 78, "May": 27, "June": 113}, "engagement": 0.5689}, "AKASANSIRA EVELYNE": {"total": 9, "months": 2, "monthly": {"April": 5, "May": 4}, "engagement": 0.1119}, "ALUKA GLADYS": {"total": 28, "months": 1, "monthly": {"June": 28}, "engagement": 0.0871}, "ANGUCIA LILIAN": {"total": 30, "months": 1, "monthly": {"June": 30}, "engagement": 0.0897}, "HIDRI TEKLEBERHAN": {"total": 43, "months": 1, "monthly": {"June": 43}, "engagement": 0.1069}, "KWAGALA VICTORIA NABULYA": {"total": 7, "months": 1, "monthly": {"June": 7}, "engagement": 0.0593}, "NAMAJJA REBECCA": {"total": 39, "months": 2, "monthly": {"April": 9, "June": 30}, "engagement": 0.1516}, "NAMIRO DEBORAH": {"total": 12, "months": 1, "monthly": {"May": 12}, "engagement": 0.0659}, "NAMULWASIRA MAYIMUNA": {"total": 28, "months": 2, "monthly": {"May": 3, "June": 25}, "engagement": 0.1371}, "NANTONGO SHAKIRAH": {"total": 3, "months": 1, "monthly": {"April": 3}, "engagement": 0.054}, "NANYONDO JOAN": {"total": 50, "months": 1, "monthly": {"June": 50}, "engagement": 0.1162}, "TINO PEACE RHODAH": {"total": 35, "months": 3, "monthly": {"April": 4, "May": 1, "June": 30}, "engagement": 0.1963}, "TUHAISE G PRIAH": {"total": 28, "months": 1, "monthly": {"June": 28}, "engagement": 0.0871}};
+let ENGAGEMENT_DATA=JSON.parse(JSON.stringify(DEFAULT_ENGAGEMENT_DATA));
 
 // ── STATE ──
 let PRODUCERS,LABOR_FEE;
@@ -573,7 +634,7 @@ const I18N={
     cancel_btn:'취소', save_btn:'저장',
     product_add_title:'제품 추가', product_name_label:'제품명', labor_fee_label:'노동비 (UGX/pcs)',
     data_update_title:'📥 데이터 업데이트', upload_modal_desc:'엑셀 파일을 업로드하거나 JSON 백업으로 복원하세요.',
-    utab_hmp:'HMP 명단', utab_labor:'노동비', utab_qc:'QC 이력', utab_json:'JSON 백업',
+    utab_hmp:'HMP 명단', utab_labor:'노동비', utab_qc:'QC 이력', utab_engagement:'참여도', utab_json:'JSON 백업',
     format_word:'형식', sheet_word:'시트:', product_code_v:'제품코드(v표시)', month_sheet_example:'월 이름 (예: May, June)',
     apply_month_label:'적용할 월 (시트명)', drag_excel_here:'엑셀 파일을 여기에 드래그하거나', click_to_select:'클릭하여 파일 선택',
     hmp_overwrite_warn:'⚠ 기존 HMP 데이터를 덮어씁니다. 업로드 전 백업을 권장합니다.',
@@ -625,6 +686,18 @@ const I18N={
     excellent_good:'우수 (80%↑) / 양호 (50%↑)', needs_attention:'주의 필요 (50%↓)',
     qc_history_no_data:'QC 이력 없음. 데이터 업데이트에서 엑셀 파일을 업로드하세요.',
     default_label:'기본',
+    engagement_weight_label:'참여도 반영 강도',
+    eng_none:'반영 안 함',eng_soft:'약하게 (±15%)',eng_medium:'중간 (±30%)',eng_strong:'강하게 (±50%)',
+    tab_engagement:'📈 참여 현황',
+    eng_by_hmp_title:'📈 HMP별 참여 현황', eng_period_label:'(2026년 1월~6월 기준)',
+    eng_sort_hi:'참여도 높은순', eng_sort_lo:'참여도 낮은순', eng_sort_qty:'총 생산량 많은순', eng_sort_months:'활동 개월수 많은순',
+    eng_dist_title:'참여도 분포',
+    eng_has_data:'참여 데이터 보유 HMP', eng_avg:'전체 평균 참여도',
+    eng_active_mid:'활발 (60%↑) / 보통 (30%↑)', eng_low:'저조 (30%↓)',
+    eng_no_history:'참여 이력 없음',
+    eng_upload_filename:'생산자별 월별 제품생산 수량 상세내역.xlsx',
+    eng_upload_desc:'시트 1개, 행: "(기수) 이름", 열: January~December 월별 생산수량, 마지막 열: Total',
+    eng_overwrite_warn:'⚠ 기존 참여도 데이터를 새 파일 내용으로 완전히 덮어씁니다. 매월 누적된 최신 파일을 업로드하세요.',
   },
   en:{
     title_suffix:'Production Planning System', subtitle:'Production Capability · QC History-Based Equal Labor Fee Distribution',
@@ -664,7 +737,7 @@ const I18N={
     cancel_btn:'Cancel', save_btn:'Save',
     product_add_title:'Add Product', product_name_label:'Product Name', labor_fee_label:'Labor Fee (UGX/pcs)',
     data_update_title:'📥 Update Data', upload_modal_desc:'Upload an Excel file or restore from a JSON backup.',
-    utab_hmp:'HMP List', utab_labor:'Labor Fees', utab_qc:'QC History', utab_json:'JSON Backup',
+    utab_hmp:'HMP List', utab_labor:'Labor Fees', utab_qc:'QC History', utab_engagement:'Engagement', utab_json:'JSON Backup',
     format_word:'format', sheet_word:'Sheet:', product_code_v:'Product Code (marked v)', month_sheet_example:'Month name (e.g. May, June)',
     apply_month_label:'Apply to Month (Sheet Name)', drag_excel_here:'Drag an Excel file here, or', click_to_select:'Click to select file',
     hmp_overwrite_warn:'⚠ This will overwrite existing HMP data. Backup recommended before uploading.',
@@ -715,6 +788,18 @@ const I18N={
     excellent_good:'Excellent (80%+) / Good (50%+)', needs_attention:'Needs Attention (<50%)',
     qc_history_no_data:'No QC history. Upload an Excel file under Data Management.',
     default_label:'Default',
+    engagement_weight_label:'Engagement Weight',
+    eng_none:'None',eng_soft:'Soft (±15%)',eng_medium:'Medium (±30%)',eng_strong:'Strong (±50%)',
+    tab_engagement:'📈 Engagement',
+    eng_by_hmp_title:'📈 Engagement by HMP', eng_period_label:'(Jan–Jun 2026)',
+    eng_sort_hi:'Highest engagement', eng_sort_lo:'Lowest engagement', eng_sort_qty:'Highest total output', eng_sort_months:'Most active months',
+    eng_dist_title:'Engagement Distribution',
+    eng_has_data:'HMPs with engagement data', eng_avg:'Overall avg. engagement',
+    eng_active_mid:'Active (60%+) / Moderate (30%+)', eng_low:'Low (<30%)',
+    eng_no_history:'No engagement history',
+    eng_upload_filename:'HMP Monthly Production Details.xlsx',
+    eng_upload_desc:'1 sheet, rows: "(Batch) Name", columns: January–December monthly output, last column: Total',
+    eng_overwrite_warn:'⚠ Completely overwrites existing engagement data with the new file. Upload the latest cumulative file each month.',
   }
 };
 
@@ -750,12 +835,13 @@ function toggleLang(){
   updateQcSettingDesc();
   if(planResult){renderPlan();}
   if(document.getElementById('s-qc')?.classList.contains('active')) renderQCTab();
+  if(document.getElementById('s-engagement')?.classList.contains('active')) renderEngagementTab();
   if(document.getElementById('s-manage')?.classList.contains('active')){renderProductList();renderDataStats();}
   updateFilterSummary();
 }
 
 let capableTags=[],saveTimer=null;
-let settings={qcWeightMode:'soft',qcUnknownMode:'average',qcDecay:0.8};
+let settings={qcWeightMode:'soft',qcUnknownMode:'average',qcDecay:0.8,engagementWeight:'soft'};
 
 // ── QC 누적 가중평균 계산 ──
 // QC_HISTORY: [{sheet, label, uploadedAt, data}, ...] 최신순
@@ -829,22 +915,46 @@ function getQcMonthDetail(producerName){
 }
 
 // QC 가중치 계산 (0.4~1.6 범위)
+function getEngagementScore(producerName){
+  // ENGAGEMENT_DATA는 PRODUCERS 이름 기준으로 매핑됨
+  const d=ENGAGEMENT_DATA[producerName];
+  return d?d.engagement:null;
+}
+
+function calcEngagementWeight(producerName){
+  const mode=settings.engagementWeight||'none';
+  if(mode==='none') return 1.0;
+  const eng=getEngagementScore(producerName);
+  const ranges={soft:[0.85,1.15],medium:[0.7,1.3],strong:[0.5,1.5]};
+  const [minW,maxW]=ranges[mode]||[0.85,1.15];
+  if(eng===null){
+    // 참여 이력 없음 → 신규로 간주 average
+    return 1.0;
+  }
+  return minW+(maxW-minW)*eng;
+}
+
 function calcQcWeight(producerName){
   const mode=settings.qcWeightMode;
-  if(mode==='none') return 1.0;
-  const rate=getQcRate(producerName);
-  // 모드별 범위
-  const ranges={soft:[0.8,1.2],medium:[0.6,1.4],strong:[0.4,1.6]};
-  const [minW,maxW]=ranges[mode]||[0.8,1.2];
-  if(rate===null){
-    // QC 데이터 없음
-    if(settings.qcUnknownMode==='full') return maxW;
-    if(settings.qcUnknownMode==='low') return minW;
-    return 1.0; // average
+  // QC 가중치
+  let qcW=1.0;
+  if(mode!=='none'){
+    const rate=getQcRate(producerName);
+    const ranges={soft:[0.8,1.2],medium:[0.6,1.4],strong:[0.4,1.6]};
+    const [minW,maxW]=ranges[mode]||[0.8,1.2];
+    if(rate===null){
+      if(settings.qcUnknownMode==='full') qcW=maxW;
+      else if(settings.qcUnknownMode==='low') qcW=minW;
+      else qcW=1.0;
+    } else {
+      const clampedRate=Math.min(100,Math.max(0,rate));
+      qcW=minW+(maxW-minW)*(clampedRate/100);
+    }
   }
-  // rate: 0~100+ → weight: minW~maxW
-  const clampedRate=Math.min(100,Math.max(0,rate));
-  return minW+(maxW-minW)*(clampedRate/100);
+  // 참여도 가중치
+  const engW=calcEngagementWeight(producerName);
+  // 두 가중치 결합 (기하평균으로 극단값 완화)
+  return Math.sqrt(qcW*engW);
 }
 
 function qcRateColor(rate){
@@ -891,6 +1001,9 @@ function loadData(){
   }catch(e){window.QC_HISTORY=[{sheet:'May',label:'2026년 5월',uploadedAt:'2026-05-31T00:00:00.000Z',data:QC_DATA_MAY}];}
   // 가중평균 QC 계산
   computeWeightedQC();
+  // 참여도 데이터 로드 (엑셀 업로드로 덮어쓴 값이 있으면 그것을 사용)
+  try{const e=localStorage.getItem('sdc_engagement_data');ENGAGEMENT_DATA=e?JSON.parse(e):JSON.parse(JSON.stringify(DEFAULT_ENGAGEMENT_DATA));}
+  catch(e){ENGAGEMENT_DATA=JSON.parse(JSON.stringify(DEFAULT_ENGAGEMENT_DATA));}
 }
 function saveData(){
   localStorage.setItem('sdc_hmp_data',JSON.stringify({producers:PRODUCERS,laborFee:LABOR_FEE,lastModified:new Date().toISOString()}));
@@ -902,6 +1015,7 @@ function saveSettings(){
   settings.qcWeightMode=document.getElementById('qc-weight-mode').value;
   settings.qcUnknownMode=document.getElementById('qc-unknown-mode').value;
   settings.qcDecay=parseFloat(document.getElementById('qc-decay').value)||0.8;
+  const ewEl=document.getElementById('engagement-weight');if(ewEl)settings.engagementWeight=ewEl.value;
   localStorage.setItem('sdc_settings',JSON.stringify(settings));
   computeWeightedQC();
   updateQcSettingDesc();
@@ -935,11 +1049,12 @@ function bCls(b){return'b'+(b<=8?b:1);}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 function go(t){
-  ['order','plan','qc','hmp','manage'].forEach((id,i)=>{
+  ['order','plan','qc','engagement','hmp','manage'].forEach((id,i)=>{
     document.getElementById('s-'+id).classList.toggle('active',id===t);
     document.querySelectorAll('.tab')[i].classList.toggle('active',id===t);
   });
   if(t==='qc'){renderQCTab();}
+  if(t==='engagement'){renderEngagementTab();}
   if(t==='hmp')renderHMPList();
   if(t==='manage'){renderProductList();renderDataStats();}
 }
@@ -1146,10 +1261,11 @@ function renderFeeChart(bFilter){
     const col=f===0?'var(--border2)':f>pt*1.3?'var(--red)':f>pt*0.7?'var(--accent)':'var(--yellow)';
     const rate=getQcRate(p.name);
     const rateStr=rate!==null?`${rate}%`:'N/A';
-    const wStr=settings.qcWeightMode!=='none'?` <span class="${weightBadgeClass(weights[p.name])}" style="font-size:10px">×${(weights[p.name]||1).toFixed(2)}</span>`:'';
+        const engScore=getEngagementScore(p.name);const engStr=engScore!==null?`${Math.round(engScore*100)}%`:'N/A';
+    const wStr=settings.qcWeightMode!=='none'||settings.engagementWeight!=='none'?` <span class="${weightBadgeClass(weights[p.name])}" style="font-size:10px">×${(weights[p.name]||1).toFixed(2)}</span>`:'';const engBadge=engScore!==null?` <span class="bdg" style="font-size:9px;background:#FFF3E0;color:#E65100">参${engStr}</span>`:'§nbsp;';
     return`<div style="display:grid;grid-template-columns:200px 1fr 80px;align-items:center;gap:8px;padding:3px 0">
       <span style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.name}">
-        <span class="bdg ${bCls(p.batch)}" style="margin-right:3px">${p.batch}</span>${p.name}${wStr}
+        <span class="bdg ${bCls(p.batch)}" style="margin-right:3px">${p.batch}</span>${p.name}${wStr}${engBadge||''}
       </span>
       <div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${col}"></div><div class="bar-target" style="left:${tp}%"></div></div>
       <div style="display:flex;align-items:center;justify-content:flex-end;gap:4px">
@@ -1363,6 +1479,101 @@ function renderQCDistChart(){
     <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center">${currentLang==='ko'?'누적 가중평균 QC 통과율 분포':'Cumulative weighted QC pass rate distribution'} (${all.length}${t('people_suffix')}, ${months}${t('month_unit')})</div>`;
 }
 
+// ── 참여 현황 ──
+let activeEngBatch=null;
+function renderEngagementTab(){
+  const entries=PRODUCERS.map(p=>({name:p.name,batch:p.batch,eng:ENGAGEMENT_DATA[p.name]||null}));
+  const withData=entries.filter(e=>e.eng);
+  const scores=withData.map(e=>e.eng.engagement);
+  const avg=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length*100):0;
+  const hi=scores.filter(s=>s>=0.6).length;
+  const mid=scores.filter(s=>s>=0.3&&s<0.6).length;
+  const lo=scores.filter(s=>s<0.3).length;
+  document.getElementById('eng-summary-grid').innerHTML=`
+    <div class="smc"><div class="lbl" data-i18n="eng_has_data">참여 데이터 보유 HMP</div><div class="val">${withData.length}${t('people_suffix')}</div></div>
+    <div class="smc"><div class="lbl" data-i18n="eng_avg">전체 평균 참여도</div><div class="val">${avg}%</div></div>
+    <div class="smc"><div class="lbl" data-i18n="eng_active_mid">활발 (60%↑) / 보통 (30%↑)</div><div class="val">${hi}${t('people_suffix')} / ${mid}${t('people_suffix')}</div></div>
+    <div class="smc"><div class="lbl" style="color:var(--red)" data-i18n="eng_low">저조 (30%↓)</div><div class="val" style="color:var(--red)">${lo}${t('people_suffix')}</div></div>`;
+
+  if(!document.getElementById('eng-batch-filter').querySelector('.chip')){
+    const batches=[...new Set(PRODUCERS.map(p=>p.batch))].sort((a,b)=>a-b);
+    document.getElementById('eng-batch-filter').innerHTML=`<span style="font-size:12px;color:var(--text2);font-weight:500">${t('batch_colon')}</span>`+
+      [t('all_label'),...batches].map((v,i)=>`<button class="chip ${i===0?'on':''}" onclick="filterEngBatch(${v===t('all_label')?'null':v},this)">${v===t('all_label')?t('all_label'):v+(currentLang==='ko'?'기':'')}</button>`).join('');
+  }
+  renderEngagementList();
+  renderEngagementDistChart();
+}
+
+function filterEngBatch(b,el){
+  activeEngBatch=b;
+  document.querySelectorAll('#eng-batch-filter .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  renderEngagementList();
+}
+
+function renderEngagementList(){
+  const sort=document.getElementById('eng-sort')?.value||'eng-hi';
+  let list=PRODUCERS.filter(p=>activeEngBatch===null||p.batch===activeEngBatch)
+    .map(p=>({name:p.name,batch:p.batch,eng:ENGAGEMENT_DATA[p.name]||null}));
+  list.sort((a,b)=>{
+    if(sort==='eng-hi') return (b.eng?b.eng.engagement:-1)-(a.eng?a.eng.engagement:-1);
+    if(sort==='eng-lo') return (a.eng?a.eng.engagement:2)-(b.eng?b.eng.engagement:2);
+    if(sort==='qty') return (b.eng?b.eng.total:0)-(a.eng?a.eng.total:0);
+    if(sort==='months') return (b.eng?b.eng.months:0)-(a.eng?a.eng.months:0);
+    if(sort==='batch') return (a.batch-b.batch)||a.name.localeCompare(b.name);
+    return 0;
+  });
+  const monthsOrder=['January','February','March','April','May','June'];
+  const monthLabels=currentLang==='ko'
+    ?{January:'1월',February:'2월',March:'3월',April:'4월',May:'5월',June:'6월'}
+    :{January:'Jan',February:'Feb',March:'Mar',April:'Apr',May:'May',June:'Jun'};
+  // 전체 HMP 공통 기준: 모든 사람·모든 달 중 최댓값을 100%로 사용 (사람 간 비교 가능)
+  const globalMaxQty=Math.max(...Object.values(ENGAGEMENT_DATA).flatMap(d=>monthsOrder.map(m=>d.monthly[m]||0)),1);
+  document.getElementById('eng-list').innerHTML=list.length?list.map(p=>{
+    const eng=p.eng;
+    const pct=eng?Math.round(eng.engagement*100):null;
+    const barColor=pct===null?'#9E9E9E':pct>=60?'#2E7D32':pct>=30?'#F57F17':'#C62828';
+    const monthBars=eng?monthsOrder.map(m=>{
+      const q=eng.monthly[m]||0;
+      return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+        <span style="font-size:9px;color:var(--text3)">${q||''}</span>
+        <div style="width:100%;background:${q?'var(--accent)':'var(--border)'};opacity:${q?.85:.3};height:${Math.max(3,Math.round(q/globalMaxQty*36))}px;border-radius:2px"></div>
+        <span style="font-size:9px;color:var(--text3)">${monthLabels[m]}</span>
+      </div>`;
+    }).join(''):'';
+    return`<div class="qc-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${eng?'8px':'0'}">
+        <span class="bdg ${bCls(p.batch)}">${p.batch}${currentLang==='ko'?'기':''}</span>
+        <span style="font-weight:600;font-size:13px;flex:1">${p.name}</span>
+        <div class="qc-bar-wrap" style="flex:2">
+          <div class="qc-bar-bg"><div class="qc-bar-fill" style="width:${pct??0}%;background:${barColor}"></div></div>
+          <span class="qc-rate-badge" style="color:${barColor}">${pct!==null?pct+'%':'N/A'}</span>
+        </div>
+        ${eng?`<span style="font-size:11px;color:var(--text2)">${eng.months}${t('month_unit')} · ${currentLang==='ko'?'총':'total'} ${eng.total}${currentLang==='ko'?'개':'pcs'}</span>`:`<span style="font-size:11px;color:var(--text3)" data-i18n="eng_no_history">참여 이력 없음</span>`}
+      </div>
+      ${eng?`<div style="display:flex;gap:4px;padding:4px 4px 0">${monthBars}</div>`:''}
+    </div>`;
+  }).join(''):`<div class="empty">${t('no_condition_data')}</div>`;
+}
+
+function renderEngagementDistChart(){
+  const scores=PRODUCERS.map(p=>ENGAGEMENT_DATA[p.name]?ENGAGEMENT_DATA[p.name].engagement:null).filter(v=>v!==null);
+  const buckets=[{label:'0~10%',min:0,max:.1,col:'#C62828'},{label:'10~30%',min:.1,max:.3,col:'#E53935'},{label:'30~50%',min:.3,max:.5,col:'#FB8C00'},{label:'50~70%',min:.5,max:.7,col:'#43A047'},{label:'70%+',min:.7,max:1.01,col:'#1B5E20'}];
+  const counts=buckets.map(b=>({...b,count:scores.filter(s=>s>=b.min&&s<b.max).length}));
+  const maxC=Math.max(...counts.map(b=>b.count),1);
+  document.getElementById('eng-dist-chart').innerHTML=`
+    <div style="display:flex;gap:12px;align-items:flex-end;height:120px;padding:0 8px;margin-bottom:8px">
+      ${counts.map(b=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+        <span style="font-size:12px;font-weight:700;color:${b.col}">${b.count}</span>
+        <div style="width:100%;background:${b.col};opacity:.85;height:${Math.round(b.count/maxC*80)+4}px;border-radius:4px 4px 0 0;min-height:4px"></div>
+      </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:12px;padding:0 8px">
+      ${counts.map(b=>`<div style="flex:1;text-align:center;font-size:11px;color:var(--text2)">${b.label}</div>`).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center">${currentLang==='ko'?'전체 HMP 참여도 분포':'Overall HMP engagement distribution'} (${scores.length}${t('people_suffix')} / ${currentLang==='ko'?'전체':'total'} ${PRODUCERS.length}${t('people_suffix')})</div>`;
+}
+
 // ── HMP 현황 ──
 function setupHmpFilters(){
   const batches=[...new Set(PRODUCERS.map(p=>p.batch))].sort();
@@ -1503,6 +1714,7 @@ function parseExcelFile(file,type){
       if(type==='hmp') parseHMPExcel(wb,resultEl);
       else if(type==='labor') parseLaborExcel(wb,resultEl);
       else if(type==='qc') parseQCExcel(wb,resultEl);
+      else if(type==='engagement') parseEngagementExcel(wb,resultEl);
     }catch(err){
       resultEl.innerHTML=`<div class="upload-result-err">❌ 파일을 읽을 수 없습니다: ${err.message}</div>`;
     }
@@ -1648,6 +1860,109 @@ function parseQCExcel(wb,resultEl){
     <span style="font-size:12px">이번 월 평균 통과율: ${avg}% · 사용 가능한 시트: ${wb.SheetNames.join(', ')}</span></div>`;
 }
 
+// ── 참여도 파일 파싱 ──
+// 구조: 1개 시트, 헤더행(January~December 포함), 각 행 A열="(기수) 이름 [★]", 월별 컬럼=생산수량, 마지막 컬럼=Total
+const ENG_MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function nameTokenScore(aTokens,bTokens){
+  const matches=aTokens.filter(tk=>bTokens.some(pt=>pt.includes(tk)||tk.includes(pt))).length;
+  return matches/Math.max(aTokens.length,bTokens.length);
+}
+
+// 엑셀의 원본 이름들을 PRODUCERS 이름으로 1:1 매칭 (그리디: 가장 확실한 매칭부터 확정하여
+// 비슷한 이름끼리 서로 다른 사람 데이터를 덮어쓰는 충돌을 방지)
+function matchEngagementNames(rawNames){
+  const candidates=[];
+  rawNames.forEach(rawName=>{
+    const t1=rawName.toLowerCase().split(/\s+/);
+    PRODUCERS.forEach(p=>{
+      const t2=p.name.toLowerCase().split(/\s+/);
+      const score=nameTokenScore(t1,t2);
+      if(score>0.4) candidates.push({rawName,producer:p.name,score});
+    });
+  });
+  candidates.sort((a,b)=>b.score-a.score);
+  const usedProducer=new Set(),usedRaw=new Set();
+  const map={};
+  candidates.forEach(c=>{
+    if(usedProducer.has(c.producer)||usedRaw.has(c.rawName)) return;
+    map[c.rawName]=c.producer;
+    usedProducer.add(c.producer);usedRaw.add(c.rawName);
+  });
+  return map;
+}
+
+function parseEngagementExcel(wb,resultEl){
+  try{
+    const wsName=wb.SheetNames[0];
+    const ws=wb.Sheets[wsName];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+
+    // 헤더 행 찾기 (January가 포함된 행)
+    let headerIdx=-1;
+    for(let i=0;i<rows.length;i++){
+      if(rows[i]&&rows[i].some(c=>String(c||'').trim()==='January')){headerIdx=i;break;}
+    }
+    if(headerIdx<0){resultEl.innerHTML='<div class="upload-result-err">❌ 월 이름(January 등) 헤더 행을 찾을 수 없습니다.</div>';return;}
+
+    const header=rows[headerIdx];
+    const monthCols={};
+    header.forEach((h,idx)=>{const hs=String(h||'').trim();if(ENG_MONTH_NAMES.includes(hs))monthCols[hs]=idx;});
+    if(!Object.keys(monthCols).length){resultEl.innerHTML='<div class="upload-result-err">❌ 월별 컬럼을 찾을 수 없습니다.</div>';return;}
+
+    // 데이터 행 파싱 (반드시 "(기수)" 접두사가 있는 행만 — Monthly Total 등 합계 행 제외)
+    const raw={};
+    for(let r=headerIdx+1;r<rows.length;r++){
+      const row=rows[r];
+      if(!row||row[0]==null||row[0]==='') continue;
+      const cell=String(row[0]).trim();
+      if(!cell||!/^\(\d+\)/.test(cell)) continue;
+      const name=cell.replace(/^\(\d+\)\s*/,'').replace(/★/g,'').trim();
+      if(!name) continue;
+      const monthly={};let total=0;
+      Object.entries(monthCols).forEach(([m,col])=>{
+        const v=row[col];
+        if(v!==null&&v!==undefined&&v!==''){
+          const num=Number(v);
+          if(!isNaN(num)&&num>0){monthly[m]=num;total+=num;}
+        }
+      });
+      if(Object.keys(monthly).length) raw[name]={monthly,total};
+    }
+
+    const rawCount=Object.keys(raw).length;
+    if(!rawCount){resultEl.innerHTML='<div class="upload-result-err">❌ 참여 실적이 있는 HMP를 찾지 못했습니다.</div>';return;}
+
+    // 데이터가 존재하는 전체 개월 수 (참여도 계산 분모)
+    const monthsSeen=new Set();
+    Object.values(raw).forEach(d=>Object.keys(d.monthly).forEach(m=>monthsSeen.add(m)));
+    const totalMonthsSoFar=monthsSeen.size||1;
+    const maxTotal=Math.max(...Object.values(raw).map(d=>d.total),1);
+
+    // 이름 1:1 매칭 후 최종 ENGAGEMENT_DATA 구성
+    const nameMap=matchEngagementNames(Object.keys(raw));
+    const unmatched=Object.keys(raw).filter(n=>!nameMap[n]);
+    const result={};
+    Object.entries(raw).forEach(([rawName,d])=>{
+      const key=nameMap[rawName]||rawName;
+      const monthsCount=Object.keys(d.monthly).length;
+      const engagement=Math.round((0.7*(d.total/maxTotal)+0.3*(monthsCount/totalMonthsSoFar))*10000)/10000;
+      result[key]={total:d.total,months:monthsCount,monthly:d.monthly,engagement};
+    });
+
+    ENGAGEMENT_DATA=result;
+    localStorage.setItem('sdc_engagement_data',JSON.stringify(ENGAGEMENT_DATA));
+
+    if(document.getElementById('s-engagement')?.classList.contains('active')) renderEngagementTab();
+    if(document.getElementById('s-hmp')?.classList.contains('active')) renderHMPList();
+
+    resultEl.innerHTML=`<div class="upload-result-ok">✅ 참여 데이터 ${rawCount}명 업로드 완료 — 누적 ${totalMonthsSoFar}개월 반영
+      ${unmatched.length?`<br><span style="font-size:12px;color:var(--red)">⚠ HMP 명단과 이름 매칭 실패 ${unmatched.length}명 (신규 HMP이거나 이름 표기가 다를 수 있음): ${unmatched.join(', ')}</span>`:''}</div>`;
+  }catch(err){
+    resultEl.innerHTML=`<div class="upload-result-err">❌ 파일을 읽을 수 없습니다: ${err.message||err}</div>`;
+  }
+}
+
 // ── 배분 대상 필터 패널 ──
 let filterState={batches:new Set(),cats:new Set(),inds:new Set()};
 
@@ -1750,6 +2065,7 @@ updateQcSettingDesc();
 document.getElementById('qc-weight-mode').value=settings.qcWeightMode;
 document.getElementById('qc-unknown-mode').value=settings.qcUnknownMode;
 document.getElementById('qc-decay').value=settings.qcDecay||0.8;
+const ewEl2=document.getElementById('engagement-weight');if(ewEl2)ewEl2.value=settings.engagementWeight||'soft';
 </script>
 </body>
 </html>
