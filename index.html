@@ -155,6 +155,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
     <button class="tab" onclick="go('plan')" data-i18n="tab_plan">📊 생산 계획</button>
     <button class="tab" onclick="go('qc')" data-i18n="tab_qc">✅ QC 이력</button>
     <button class="tab" onclick="go('engagement')" data-i18n="tab_engagement">📈 참여 현황</button>
+    <button class="tab" onclick="go('grade')" data-i18n="tab_grade">🏆 등급 현황</button>
     <button class="tab" onclick="go('hmp')" data-i18n="tab_hmp">👥 HMP 현황</button>
     <button class="tab" onclick="go('manage')" data-i18n="tab_manage">⚙️ 데이터 관리</button>
   </div>
@@ -384,6 +385,45 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
   <div class="card">
     <div class="ct" data-i18n="eng_dist_title">참여도 분포</div>
     <div id="eng-dist-chart"></div>
+  </div>
+</div>
+
+<!-- 등급 현황 -->
+<div id="s-grade" class="sec">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      <span class="ct" style="margin:0" data-i18n="grade_criteria_title">🏆 등급 산정 기준</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:12px;color:var(--text2)" data-i18n="grade_ratio_label">QC : 참여도 비율</span>
+        <select id="grade-ratio" onchange="saveGradeRatio()" style="width:auto;font-size:12px;padding:4px 8px">
+          <option value="0.7" data-i18n="grade_ratio_73">QC 70% + 참여도 30%</option>
+          <option value="0.6" data-i18n="grade_ratio_64">QC 60% + 참여도 40%</option>
+          <option value="0.5" data-i18n="grade_ratio_55">QC 50% + 참여도 50%</option>
+        </select>
+      </div>
+    </div>
+    <div id="grade-desc" style="font-size:12px;color:var(--text2);line-height:1.7;background:var(--bg2);border-radius:8px;padding:10px 12px"></div>
+  </div>
+  <div class="card">
+    <div class="smg" id="grade-summary-grid"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:12px 0 6px">
+      <div class="frow" id="grade-batch-filter" style="margin:0"><span style="font-size:12px;color:var(--text2);font-weight:500" data-i18n="batch_colon">기수:</span></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:12px;color:var(--text2)" data-i18n="sort_label">정렬:</span>
+        <select id="grade-sort" onchange="renderGradeList()" style="width:auto;font-size:12px;padding:4px 8px">
+          <option value="score-hi" data-i18n="grade_sort_hi">종합점수 높은순</option>
+          <option value="score-lo" data-i18n="grade_sort_lo">종합점수 낮은순</option>
+          <option value="qc" data-i18n="grade_sort_qc">QC율 높은순</option>
+          <option value="eng" data-i18n="grade_sort_eng">참여도 높은순</option>
+          <option value="batch" data-i18n="sort_batch">기수순</option>
+        </select>
+      </div>
+    </div>
+    <div id="grade-list"></div>
+  </div>
+  <div class="card">
+    <div class="ct" data-i18n="grade_dist_title">등급 분포</div>
+    <div id="grade-dist-chart"></div>
   </div>
 </div>
 
@@ -698,6 +738,13 @@ const I18N={
     eng_upload_filename:'생산자별 월별 제품생산 수량 상세내역.xlsx',
     eng_upload_desc:'시트 1개, 행: "(기수) 이름", 열: January~December 월별 생산수량, 마지막 열: Total',
     eng_overwrite_warn:'⚠ 기존 참여도 데이터를 새 파일 내용으로 완전히 덮어씁니다. 매월 누적된 최신 파일을 업로드하세요.',
+    tab_grade:'🏆 등급 현황',
+    grade_criteria_title:'🏆 등급 산정 기준', grade_ratio_label:'QC : 참여도 비율',
+    grade_ratio_73:'QC 70% + 참여도 30%', grade_ratio_64:'QC 60% + 참여도 40%', grade_ratio_55:'QC 50% + 참여도 50%',
+    grade_sort_hi:'종합점수 높은순', grade_sort_lo:'종합점수 낮은순', grade_sort_qc:'QC율 높은순', grade_sort_eng:'참여도 높은순',
+    grade_dist_title:'등급 분포',
+    grade_evaluated:'등급 산정 완료', grade_pending:'평가 중', grade_sa:'S / A 등급', grade_d:'D 등급',
+    score_unit:'점',
   },
   en:{
     title_suffix:'Production Planning System', subtitle:'Production Capability · QC History-Based Equal Labor Fee Distribution',
@@ -800,6 +847,13 @@ const I18N={
     eng_upload_filename:'HMP Monthly Production Details.xlsx',
     eng_upload_desc:'1 sheet, rows: "(Batch) Name", columns: January–December monthly output, last column: Total',
     eng_overwrite_warn:'⚠ Completely overwrites existing engagement data with the new file. Upload the latest cumulative file each month.',
+    tab_grade:'🏆 Grade',
+    grade_criteria_title:'🏆 Grading Criteria', grade_ratio_label:'QC : Engagement ratio',
+    grade_ratio_73:'QC 70% + Engagement 30%', grade_ratio_64:'QC 60% + Engagement 40%', grade_ratio_55:'QC 50% + Engagement 50%',
+    grade_sort_hi:'Highest score', grade_sort_lo:'Lowest score', grade_sort_qc:'Highest QC rate', grade_sort_eng:'Highest engagement',
+    grade_dist_title:'Grade Distribution',
+    grade_evaluated:'Graded', grade_pending:'Pending', grade_sa:'S / A grade', grade_d:'D grade',
+    score_unit:' pts',
   }
 };
 
@@ -836,12 +890,13 @@ function toggleLang(){
   if(planResult){renderPlan();}
   if(document.getElementById('s-qc')?.classList.contains('active')) renderQCTab();
   if(document.getElementById('s-engagement')?.classList.contains('active')) renderEngagementTab();
+  if(document.getElementById('s-grade')?.classList.contains('active')) renderGradeTab();
   if(document.getElementById('s-manage')?.classList.contains('active')){renderProductList();renderDataStats();}
   updateFilterSummary();
 }
 
 let capableTags=[],saveTimer=null;
-let settings={qcWeightMode:'soft',qcUnknownMode:'average',qcDecay:0.8,engagementWeight:'soft'};
+let settings={qcWeightMode:'soft',qcUnknownMode:'average',qcDecay:0.8,engagementWeight:'soft',gradeQcRatio:0.6};
 
 // ── QC 누적 가중평균 계산 ──
 // QC_HISTORY: [{sheet, label, uploadedAt, data}, ...] 최신순
@@ -1049,12 +1104,13 @@ function bCls(b){return'b'+(b<=8?b:1);}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 
 function go(t){
-  ['order','plan','qc','engagement','hmp','manage'].forEach((id,i)=>{
+  ['order','plan','qc','engagement','grade','hmp','manage'].forEach((id,i)=>{
     document.getElementById('s-'+id).classList.toggle('active',id===t);
     document.querySelectorAll('.tab')[i].classList.toggle('active',id===t);
   });
   if(t==='qc'){renderQCTab();}
   if(t==='engagement'){renderEngagementTab();}
+  if(t==='grade'){renderGradeTab();}
   if(t==='hmp')renderHMPList();
   if(t==='manage'){renderProductList();renderDataStats();}
 }
@@ -1574,6 +1630,195 @@ function renderEngagementDistChart(){
     <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center">${currentLang==='ko'?'전체 HMP 참여도 분포':'Overall HMP engagement distribution'} (${scores.length}${t('people_suffix')} / ${currentLang==='ko'?'전체':'total'} ${PRODUCERS.length}${t('people_suffix')})</div>`;
 }
 
+// ── 등급 현황 ──
+const GRADE_THRESHOLDS=[{grade:'S',min:85,color:'#6A1B9A'},{grade:'A',min:70,color:'#2E7D32'},{grade:'B',min:45,color:'#1565C0'},{grade:'C',min:20,color:'#F57F17'},{grade:'D',min:0,color:'#C62828'}];
+let activeGradeBatch=null;
+let expandedGradeNames=new Set();
+
+function getGradeRatio(){return settings.gradeQcRatio!=null?settings.gradeQcRatio:0.6;}
+
+// QC율(0~100)과 참여도(0~1)를 종합해 등급 산정. 둘 중 하나라도 데이터가 없으면 "평가 중"(grade=null)
+function calcGradeInfo(producerName){
+  const qc=getQcRate(producerName);
+  const eng=getEngagementScore(producerName);
+  if(qc===null||eng===null) return{qc,eng,score:null,grade:null};
+  const qcRatio=getGradeRatio();
+  const score=Math.round((qcRatio*qc+(1-qcRatio)*eng*100)*10)/10;
+  let grade='D';
+  for(const g of GRADE_THRESHOLDS){if(score>=g.min){grade=g.grade;break;}}
+  return{qc,eng,score,grade};
+}
+
+function gradeColor(g){const f=GRADE_THRESHOLDS.find(x=>x.grade===g);return f?f.color:'#9E9E9E';}
+
+function saveGradeRatio(){
+  settings.gradeQcRatio=parseFloat(document.getElementById('grade-ratio').value);
+  localStorage.setItem('sdc_settings',JSON.stringify(settings));
+  renderGradeTab();
+}
+
+function renderGradeCriteriaDesc(){
+  const qcRatio=getGradeRatio();
+  const qcPct=Math.round(qcRatio*100),engPct=100-qcPct;
+  const rows=GRADE_THRESHOLDS.map((g,i)=>{
+    const next=GRADE_THRESHOLDS[i-1];
+    const rangeLabel=next?`${g.min}~${next.min-0.1}점`:`${g.min}점 이상`;
+    return`<span style="display:inline-flex;align-items:center;gap:4px;margin-right:14px"><span style="width:10px;height:10px;border-radius:3px;background:${g.color};display:inline-block"></span><b style="color:${g.color}">${g.grade}</b> ${rangeLabel}</span>`;
+  }).join('');
+  document.getElementById('grade-desc').innerHTML=
+    `${currentLang==='ko'?'종합점수':'Score'} = QC ${qcPct}% + ${currentLang==='ko'?'참여도':'Engagement'} ${engPct}%<br>
+     <div style="margin-top:6px">${rows}</div>
+     <div style="margin-top:6px;color:var(--text3)">${currentLang==='ko'?'QC 이력 또는 참여 데이터가 없는 HMP는 "평가 중"으로 표시됩니다.':'HMPs without QC or engagement data are shown as "Pending".'}</div>`;
+}
+
+function renderGradeTab(){
+  renderGradeCriteriaDesc();
+  const infos=PRODUCERS.map(p=>({name:p.name,batch:p.batch,...calcGradeInfo(p.name)}));
+  const graded=infos.filter(i=>i.grade);
+  const pending=infos.length-graded.length;
+  const counts={};GRADE_THRESHOLDS.forEach(g=>counts[g.grade]=0);
+  graded.forEach(i=>counts[i.grade]++);
+  document.getElementById('grade-summary-grid').innerHTML=`
+    <div class="smc"><div class="lbl" data-i18n="grade_evaluated">등급 산정 완료</div><div class="val">${graded.length}${t('people_suffix')}</div></div>
+    <div class="smc"><div class="lbl" data-i18n="grade_pending">평가 중</div><div class="val" style="color:var(--text3)">${pending}${t('people_suffix')}</div></div>
+    <div class="smc"><div class="lbl" data-i18n="grade_sa">S / A 등급</div><div class="val" style="color:${gradeColor('S')}">${counts.S+counts.A}${t('people_suffix')}</div></div>
+    <div class="smc"><div class="lbl" style="color:var(--red)" data-i18n="grade_d">D 등급</div><div class="val" style="color:var(--red)">${counts.D}${t('people_suffix')}</div></div>`;
+
+  if(!document.getElementById('grade-batch-filter').querySelector('.chip')){
+    const batches=[...new Set(PRODUCERS.map(p=>p.batch))].sort((a,b)=>a-b);
+    document.getElementById('grade-batch-filter').innerHTML=`<span style="font-size:12px;color:var(--text2);font-weight:500">${t('batch_colon')}</span>`+
+      [t('all_label'),...batches].map((v,i)=>`<button class="chip ${i===0?'on':''}" onclick="filterGradeBatch(${v===t('all_label')?'null':v},this)">${v===t('all_label')?t('all_label'):v+(currentLang==='ko'?'기':'')}</button>`).join('');
+  }
+  renderGradeList();
+  renderGradeDistChart();
+}
+
+function filterGradeBatch(b,el){
+  activeGradeBatch=b;
+  document.querySelectorAll('#grade-batch-filter .chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  renderGradeList();
+}
+
+function toggleGradeDetail(name){
+  if(expandedGradeNames.has(name)) expandedGradeNames.delete(name);
+  else expandedGradeNames.add(name);
+  renderGradeList();
+}
+
+function getGlobalMaxMonthlyQty(){
+  const monthsOrder=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  return Math.max(...Object.values(ENGAGEMENT_DATA).flatMap(d=>monthsOrder.map(m=>d.monthly[m]||0)),1);
+}
+
+// 개인 리포트: 등급 근거 + QC 월별 이력 + 참여도 월별 생산량 + 생산 가능 품목
+function buildGradeDetailHTML(p){
+  const producer=PRODUCERS.find(x=>x.name===p.name);
+  const qcMonths=getQcMonthDetail(p.name);
+  const engData=ENGAGEMENT_DATA[p.name];
+  const qcRatio=getGradeRatio();
+  const qcPct=Math.round(qcRatio*100),engPct=100-qcPct;
+
+  const qcSection=qcMonths.length?`
+    <div style="display:grid;grid-template-columns:70px 55px 1fr 45px;gap:6px;font-size:11px;color:var(--text3);padding:2px 0;border-bottom:1px solid var(--border);margin-bottom:2px">
+      <span>월</span><span style="text-align:right">통과율</span><span></span><span style="text-align:right">가중치</span>
+    </div>
+    ${qcMonths.map(m=>`<div style="display:grid;grid-template-columns:70px 55px 1fr 45px;gap:6px;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">
+      <span style="color:var(--text2)">${m.label}</span>
+      <span style="text-align:right;font-weight:500">${m.rate}%</span>
+      <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden"><div style="height:100%;width:${Math.min(100,m.rate||0)}%;background:${qcRateColor(m.rate)};border-radius:2px"></div></div>
+      <span style="text-align:right;color:var(--accent);font-size:11px">×${(m.weight/100).toFixed(2)}</span>
+    </div>`).join('')}`
+    :`<div style="font-size:12px;color:var(--text3);padding:6px 0">${t('eng_no_history')==='참여 이력 없음'?'QC 이력 없음':'No QC history'}</div>`;
+
+  const monthsOrder=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const monthLabels=currentLang==='ko'
+    ?{January:'1월',February:'2월',March:'3월',April:'4월',May:'5월',June:'6월',July:'7월',August:'8월',September:'9월',October:'10월',November:'11월',December:'12월'}
+    :{January:'Jan',February:'Feb',March:'Mar',April:'Apr',May:'May',June:'Jun',July:'Jul',August:'Aug',September:'Sep',October:'Oct',November:'Nov',December:'Dec'};
+  const globalMax=getGlobalMaxMonthlyQty();
+  const engSection=engData?`
+    <div style="display:flex;gap:4px;padding:4px 4px 0">
+      ${monthsOrder.filter(m=>engData.monthly[m]!=null||true).map(m=>{
+        const q=engData.monthly[m]||0;
+        return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+          <span style="font-size:9px;color:var(--text3)">${q||''}</span>
+          <div style="width:100%;background:${q?'var(--accent)':'var(--border)'};opacity:${q?.85:.3};height:${Math.max(3,Math.round(q/globalMax*36))}px;border-radius:2px"></div>
+          <span style="font-size:9px;color:var(--text3)">${monthLabels[m]}</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px">${currentLang==='ko'?'총':'Total'} ${engData.total}${currentLang==='ko'?'개':'pcs'} · ${engData.months}${t('month_unit')} ${currentLang==='ko'?'활동':'active'}</div>`
+    :`<div style="font-size:12px;color:var(--text3);padding:6px 0">${t('eng_no_history')}</div>`;
+
+  const capableSection=producer&&producer.capable.length
+    ?`<div style="display:flex;flex-wrap:wrap;gap:4px">${producer.capable.map(c=>`<span class="ptag">${c}</span>`).join('')}</div>`
+    :`<div style="font-size:12px;color:var(--text3)">${t('no_capable_products')}</div>`;
+
+  const scoreLine=p.grade
+    ?`${currentLang==='ko'?'종합점수':'Score'} = QC ${p.qc!==null?Math.round(p.qc):'-'}%×${qcPct}% + ${currentLang==='ko'?'참여도':'Eng'} ${p.eng!==null?Math.round(p.eng*100):'-'}%×${engPct}% = <b style="color:${gradeColor(p.grade)}">${p.score}${t('score_unit')} (${p.grade})</b>`
+    :`${currentLang==='ko'?'QC 또는 참여도 데이터가 부족하여 등급 보류 상태입니다.':'Grade pending — missing QC or engagement data.'}`;
+
+  return`<div style="padding:12px 4px 4px;border-top:1px dashed var(--border);margin-top:8px">
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px">${scoreLine}</div>
+    <div style="font-size:12px;font-weight:600;margin-bottom:4px" data-i18n="no_capable_products_title">${currentLang==='ko'?'생산 가능 품목':'Capable Products'}</div>
+    ${capableSection}
+    <div style="font-size:12px;font-weight:600;margin:12px 0 4px">${currentLang==='ko'?'QC 이력':'QC History'}</div>
+    ${qcSection}
+    <div style="font-size:12px;font-weight:600;margin:12px 0 4px">${currentLang==='ko'?'참여도 (월별 생산량)':'Engagement (Monthly Output)'}</div>
+    ${engSection}
+  </div>`;
+}
+
+function renderGradeList(){
+  const sort=document.getElementById('grade-sort')?.value||'score-hi';
+  let list=PRODUCERS.filter(p=>activeGradeBatch===null||p.batch===activeGradeBatch)
+    .map(p=>({name:p.name,batch:p.batch,...calcGradeInfo(p.name)}));
+  list.sort((a,b)=>{
+    if(sort==='score-hi') return(b.score??-1)-(a.score??-1);
+    if(sort==='score-lo') return(a.score??101)-(b.score??101);
+    if(sort==='qc') return(b.qc??-1)-(a.qc??-1);
+    if(sort==='eng') return(b.eng??-1)-(a.eng??-1);
+    if(sort==='batch') return(a.batch-b.batch)||a.name.localeCompare(b.name);
+    return 0;
+  });
+  document.getElementById('grade-list').innerHTML=list.length?list.map(p=>{
+    const gCol=p.grade?gradeColor(p.grade):'#9E9E9E';
+    const qcStr=p.qc!==null?Math.round(p.qc)+'%':'N/A';
+    const engStr=p.eng!==null?Math.round(p.eng*100)+'%':'N/A';
+    const isOpen=expandedGradeNames.has(p.name);
+    const safeName=p.name.replace(/'/g,"\\'");
+    return`<div class="qc-card">
+      <div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="toggleGradeDetail('${safeName}')">
+        <span style="font-size:11px;color:var(--text3);width:12px;flex-shrink:0">${isOpen?'▾':'▸'}</span>
+        <span class="bdg ${bCls(p.batch)}">${p.batch}${currentLang==='ko'?'기':''}</span>
+        <span style="font-weight:600;font-size:13px;flex:1">${p.name}</span>
+        <span style="font-size:11px;color:var(--text2)">QC ${qcStr} · ${currentLang==='ko'?'참여':'Eng'} ${engStr}</span>
+        <span style="min-width:44px;text-align:right;font-size:12px;color:var(--text2)">${p.score!==null?p.score+t('score_unit'):''}</span>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:26px;border-radius:8px;font-weight:700;font-size:13px;color:#fff;background:${gCol}">${p.grade||'-'}</span>
+      </div>
+      ${isOpen?buildGradeDetailHTML(p):''}
+    </div>`;
+  }).join(''):`<div class="empty">${t('no_condition_data')}</div>`;
+}
+
+
+function renderGradeDistChart(){
+  const infos=PRODUCERS.map(p=>calcGradeInfo(p.name)).filter(i=>i.grade);
+  const counts=GRADE_THRESHOLDS.map(g=>({...g,count:infos.filter(i=>i.grade===g.grade).length}));
+  const maxC=Math.max(...counts.map(c=>c.count),1);
+  document.getElementById('grade-dist-chart').innerHTML=`
+    <div style="display:flex;gap:12px;align-items:flex-end;height:120px;padding:0 8px;margin-bottom:8px">
+      ${counts.map(c=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+        <span style="font-size:12px;font-weight:700;color:${c.color}">${c.count}</span>
+        <div style="width:100%;background:${c.color};opacity:.85;height:${Math.round(c.count/maxC*80)+4}px;border-radius:4px 4px 0 0;min-height:4px"></div>
+      </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:12px;padding:0 8px">
+      ${counts.map(c=>`<div style="flex:1;text-align:center;font-size:12px;font-weight:700;color:${c.color}">${c.grade}</div>`).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-top:8px;text-align:center">${currentLang==='ko'?'등급 산정 완료':'Graded'} ${infos.length}${t('people_suffix')} / ${currentLang==='ko'?'전체':'total'} ${PRODUCERS.length}${t('people_suffix')}</div>`;
+}
+
 // ── HMP 현황 ──
 function setupHmpFilters(){
   const batches=[...new Set(PRODUCERS.map(p=>p.batch))].sort();
@@ -1594,11 +1839,14 @@ function renderHMPList(){
   document.getElementById('hmp-list').innerHTML=list.map(p=>{
     const rate=getQcRate(p.name);
     const rateStr=rate!==null?`QC ${rate}%`:'QC N/A';
+    const gInfo=calcGradeInfo(p.name);
+    const gradeBadge=gInfo.grade?`<span class="bdg" style="font-size:10px;background:${gradeColor(gInfo.grade)};color:#fff">${gInfo.grade}</span>`:'';
     return`<div class="prow">
       <div style="min-width:200px;display:flex;flex-wrap:wrap;align-items:center;gap:4px">
         <span class="bdg ${bCls(p.batch)}">${p.batch}기</span>
         <span class="bdg ${catClass(p.category)}" style="font-size:10px">${catLabel(p.category)}</span>
         <span class="bdg ${qcBadgeClass(rate)}" style="font-size:10px">${rateStr}</span>
+        ${gradeBadge}
         <span style="font-size:12px;font-weight:600">${p.name}</span>
       </div>
       <div class="ptags">${p.capable.length
@@ -1853,6 +2101,7 @@ function parseQCExcel(wb,resultEl){
   computeWeightedQC();
 
   if(document.getElementById('s-qc').classList.contains('active')) renderQCTab();
+  if(document.getElementById('s-grade')?.classList.contains('active')) renderGradeTab();
 
   const monthCount=history.length;
   const avg=Math.round(Object.values(hmpStats).filter(d=>d.submitted>0).reduce((s,d)=>s+d.rate,0)/Object.values(hmpStats).filter(d=>d.submitted>0).length);
@@ -1954,6 +2203,7 @@ function parseEngagementExcel(wb,resultEl){
     localStorage.setItem('sdc_engagement_data',JSON.stringify(ENGAGEMENT_DATA));
 
     if(document.getElementById('s-engagement')?.classList.contains('active')) renderEngagementTab();
+    if(document.getElementById('s-grade')?.classList.contains('active')) renderGradeTab();
     if(document.getElementById('s-hmp')?.classList.contains('active')) renderHMPList();
 
     resultEl.innerHTML=`<div class="upload-result-ok">✅ 참여 데이터 ${rawCount}명 업로드 완료 — 누적 ${totalMonthsSoFar}개월 반영
@@ -2066,6 +2316,7 @@ document.getElementById('qc-weight-mode').value=settings.qcWeightMode;
 document.getElementById('qc-unknown-mode').value=settings.qcUnknownMode;
 document.getElementById('qc-decay').value=settings.qcDecay||0.8;
 const ewEl2=document.getElementById('engagement-weight');if(ewEl2)ewEl2.value=settings.engagementWeight||'soft';
+const grEl2=document.getElementById('grade-ratio');if(grEl2)grEl2.value=String(settings.gradeQcRatio!=null?settings.gradeQcRatio:0.6);
 </script>
 </body>
 </html>
