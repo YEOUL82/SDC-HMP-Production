@@ -466,6 +466,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
       <span data-i18n="last_modified">마지막 수정:</span> <span id="last-modified" style="color:var(--text);font-weight:500">-</span>
     </div>
   </div>
+  <div class="card">
+    <div class="ct" data-i18n="reset_to_published_title">🔄 최신 게시 데이터로 초기화</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.6;margin-bottom:10px" data-i18n="reset_to_published_desc">이 브라우저에 저장된 데이터(HMP 명단·QC 이력·참여도)를 지우고, 현재 배포된 버전에 내장된 최신 데이터로 되돌립니다. 관리자가 새로 게시한 내용이 안 보일 때 사용하세요.</div>
+    <button class="btn btn-sm btn-d" onclick="resetToPublishedDefaults()" data-i18n="reset_to_published_btn">🔄 최신 게시 데이터로 초기화</button>
+  </div>
 </div>
 
 <div class="footer" data-i18n="footer_text">SDC × HMP Production Planning System · QC 이력 기반 균등 노동비 배분</div>
@@ -669,6 +674,9 @@ const I18N={
     product_mgmt_title:'제품 & 노동비 관리', add_product_btn:'+ 제품 추가', product_search_placeholder:'제품명 검색...',
     th_product_name:'제품명', th_labor_fee:'노동비 (UGX)', th_capable_hmp:'생산 가능 HMP', th_manage:'관리',
     data_status_title:'데이터 현황', last_modified:'마지막 수정:',
+    reset_to_published_title:'🔄 최신 게시 데이터로 초기화',
+    reset_to_published_desc:'이 브라우저에 저장된 데이터(HMP 명단·QC 이력·참여도)를 지우고, 현재 배포된 버전에 내장된 최신 데이터로 되돌립니다. 관리자가 새로 게시한 내용이 안 보일 때 사용하세요.',
+    reset_to_published_btn:'🔄 최신 게시 데이터로 초기화',
     footer_text:'SDC × HMP Production Planning System · QC 이력 기반 균등 노동비 배분',
     hmp_add_title:'HMP 추가', name_label:'이름', batch_label:'기수', category_label:'구분',
     capable_products_label:'생산 가능 품목', capable_input_placeholder:'품목 입력 후 Enter...',
@@ -780,6 +788,9 @@ const I18N={
     product_mgmt_title:'Product & Labor Fee Management', add_product_btn:'+ Add Product', product_search_placeholder:'Search product name...',
     th_product_name:'Product Name', th_labor_fee:'Labor Fee (UGX)', th_capable_hmp:'Capable HMPs', th_manage:'Manage',
     data_status_title:'Data Status', last_modified:'Last Modified:',
+    reset_to_published_title:'🔄 Reset to Published Data',
+    reset_to_published_desc:'Clears the data saved in this browser (HMP list, QC history, engagement) and restores the latest data built into the currently published version. Use this if the manager has published an update that is not showing.',
+    reset_to_published_btn:'🔄 Reset to Published Data',
     footer_text:'SDC × HMP Production Planning System · QC History-Based Equal Labor Fee Distribution',
     hmp_add_title:'Add HMP', name_label:'Name', batch_label:'Batch', category_label:'Category',
     capable_products_label:'Capable Products', capable_input_placeholder:'Type item and press Enter...',
@@ -1105,6 +1116,16 @@ function saveData(){
   clearTimeout(saveTimer);saveTimer=setTimeout(()=>ind.classList.remove('show'),2000);
 }
 function saveOrders(){localStorage.setItem('sdc_orders',JSON.stringify(orders));}
+// 이 브라우저에 저장된 HMP/QC/참여도 데이터를 지우고, 현재 배포된 코드에 내장된 기본값으로 되돌림
+// (관리자가 새 데이터를 코드에 반영·게시했는데 조회자 브라우저에 예전 값이 남아있을 때 사용)
+function resetToPublishedDefaults(){
+  const msg=currentLang==='ko'
+    ?'이 브라우저에 저장된 HMP 명단·QC 이력·참여도 데이터를 지우고, 현재 배포된 버전의 기본 데이터로 되돌립니다.\n계속할까요?'
+    :'This will clear the HMP list, QC history, and engagement data saved in this browser, and restore the defaults built into the currently published version.\nContinue?';
+  if(!confirm(msg)) return;
+  ['sdc_hmp_data','sdc_qc_history','sdc_engagement_data'].forEach(k=>localStorage.removeItem(k));
+  location.reload();
+}
 function saveSettings(){
   settings.qcWeightMode=document.getElementById('qc-weight-mode').value;
   settings.qcUnknownMode=document.getElementById('qc-unknown-mode').value;
@@ -1894,7 +1915,7 @@ function renderHMPList(){
         <span style="font-size:12px;font-weight:600">${p.name}</span>
       </div>
       <div class="ptags">${p.capable.length
-        ?p.capable.map(c=>`<span class="ptag ${orderKeys.has(c)?'hi':''}">${c}${LABOR_FEE[c]?' <span style="opacity:.5;font-size:10px">${LABOR_FEE[c].toLocaleString()}</span>':''}</span>`).join('')
+        ?p.capable.map(c=>`<span class="ptag ${orderKeys.has(c)?'hi':''}">${c}${LABOR_FEE[c]?` <span style="opacity:.5;font-size:10px">${LABOR_FEE[c].toLocaleString()}</span>`:''}</span>`).join('')
         :`<span style="font-size:12px;color:var(--text3)">${t('no_capable_products')}</span>`
       }</div>
       <div style="display:flex;gap:4px;flex-shrink:0">
