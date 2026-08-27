@@ -688,7 +688,7 @@ const I18N={
     apply_month_label:'적용할 월 (시트명)', drag_excel_here:'엑셀 파일을 여기에 드래그하거나', click_to_select:'클릭하여 파일 선택',
     hmp_overwrite_warn:'⚠ 기존 HMP 데이터를 덮어씁니다. 업로드 전 백업을 권장합니다.',
     labor_overwrite_warn:'⚠ 기존 노동비 데이터를 덮어씁니다.',
-    json_restore_hint:'💾 백업 버튼으로 다운로드한 JSON 파일의 내용을 붙여넣으세요.',
+    json_restore_hint:'💾 백업 버튼으로 다운로드한 JSON 파일의 내용을 붙여넣으세요. (HMP 명단·노동비·QC 이력·참여도·설정값 모두 포함됩니다)',
     restore_btn:'복원하기', close_btn:'닫기',
     // 동적 텍스트
     edit_btn:'편집', delete_btn:'삭제', edit_btn_sm:'수정',
@@ -802,7 +802,7 @@ const I18N={
     apply_month_label:'Apply to Month (Sheet Name)', drag_excel_here:'Drag an Excel file here, or', click_to_select:'Click to select file',
     hmp_overwrite_warn:'⚠ This will overwrite existing HMP data. Backup recommended before uploading.',
     labor_overwrite_warn:'⚠ This will overwrite existing labor fee data.',
-    json_restore_hint:'💾 Paste the contents of a JSON file downloaded via the Backup button.',
+    json_restore_hint:'💾 Paste the contents of a JSON file downloaded via the Backup button. (Includes HMP list, labor fees, QC history, engagement data, and settings)',
     restore_btn:'Restore', close_btn:'Close',
     edit_btn:'Edit', delete_btn:'Delete', edit_btn_sm:'Edit',
     no_capable_products:'No capable products', no_data:'No data',
@@ -1144,7 +1144,14 @@ function updateQcSettingDesc(){
   document.getElementById('qc-setting-desc').textContent=(desc[mode]||'')+decayDesc;
 }
 function exportData(){
-  const d={producers:PRODUCERS,laborFee:LABOR_FEE,exportedAt:new Date().toISOString()};
+  const d={
+    producers:PRODUCERS,
+    laborFee:LABOR_FEE,
+    qcHistory:window.QC_HISTORY||[],
+    engagementData:ENGAGEMENT_DATA,
+    settings:settings,
+    exportedAt:new Date().toISOString()
+  };
   const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');
   a.href=url;a.download='sdc_hmp_data_'+new Date().toISOString().slice(0,10)+'.json';a.click();
@@ -1153,7 +1160,24 @@ function importData(){
   try{const d=JSON.parse(document.getElementById('import-json').value);
     if(!d.producers||!d.laborFee)throw new Error('invalid');
     PRODUCERS=d.producers;LABOR_FEE=d.laborFee;
-    saveData();refreshAllUI();closeModal('upload-modal');alert(t('import_success'));
+    saveData();
+    // QC 이력이 백업에 포함되어 있으면 함께 복원 (구버전 백업 파일과 호환되도록 있을 때만 복원)
+    if(d.qcHistory){
+      window.QC_HISTORY=d.qcHistory;
+      localStorage.setItem('sdc_qc_history',JSON.stringify(d.qcHistory));
+      computeWeightedQC();
+    }
+    // 참여도 데이터가 백업에 포함되어 있으면 함께 복원
+    if(d.engagementData){
+      ENGAGEMENT_DATA=d.engagementData;
+      localStorage.setItem('sdc_engagement_data',JSON.stringify(d.engagementData));
+    }
+    // 설정값이 백업에 포함되어 있으면 함께 복원
+    if(d.settings){
+      settings={...settings,...d.settings};
+      localStorage.setItem('sdc_settings',JSON.stringify(settings));
+    }
+    refreshAllUI();closeModal('upload-modal');alert(t('import_success'));
   }catch(e){alert(t('invalid_json'));}
 }
 
