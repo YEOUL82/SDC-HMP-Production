@@ -214,6 +214,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
           <option value="strong" data-i18n="eng_strong">강하게 (±50%)</option>
         </select>
       </div>
+      <div class="fg">
+        <label data-i18n="engagement_decay_label">참여도 최신월 가중치 감소율</label>
+        <select id="engagement-decay" onchange="saveSettings()">
+          <option value="0.9" data-i18n="qc_decay_strong">강하게 (최신 월 90%, 이전 월 81%, 73%...)</option>
+          <option value="0.8" selected data-i18n="qc_decay_medium">중간 (최신 월 80%, 이전 월 64%, 51%...)</option>
+          <option value="0.7" data-i18n="qc_decay_soft">약하게 (최신 월 70%, 이전 월 49%, 34%...)</option>
+        </select>
+      </div>
     </div>
     <div id="qc-setting-desc" style="font-size:12px;color:var(--text2);margin-top:4px"></div>
   </div>
@@ -576,9 +584,15 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
         <strong style="color:var(--text)">HMP_Motivation_Fee_Details.xlsx</strong> <span data-i18n="format_word">형식</span><br>
         <span data-i18n="sheet_word">시트:</span> <code style="background:var(--surface2);padding:1px 5px;border-radius:3px" data-i18n="month_sheet_example">월 이름 (예: May, June)</code> — Y / M / Product name / Submitted Qty / QC pass QTY / HMP
       </div>
-      <div class="fg" style="margin-bottom:10px">
-        <label data-i18n="apply_month_label">적용할 월 (시트명)</label>
-        <input type="text" id="qc-sheet-name" placeholder="예: May, June, July" style="max-width:200px">
+      <div class="fg" style="margin-bottom:10px;display:flex;gap:10px">
+        <div style="flex:1">
+          <label data-i18n="apply_year_label">연도</label>
+          <input type="number" id="qc-year" placeholder="예: 2026" style="max-width:120px">
+        </div>
+        <div style="flex:2">
+          <label data-i18n="apply_month_label">적용할 월 (시트명)</label>
+          <input type="text" id="qc-sheet-name" placeholder="예: May, June, July" style="max-width:200px">
+        </div>
       </div>
       <div id="qc-drop-zone" class="drop-zone" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event,'qc')">
         <div style="font-size:28px;margin-bottom:8px">📂</div>
@@ -593,9 +607,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 
     <!-- 참여도 데이터 업로드 -->
     <div id="utab-engagement" class="utab-content" style="display:none">
+      <div style="font-size:12px;color:var(--accent);background:var(--bg2);border-radius:8px;padding:8px 10px;margin-bottom:10px" data-i18n="eng_auto_from_qc_note">💡 이제 QC 이력을 업로드하면 품목별 제출수량 × 노동비 단가로 참여도(생산가치)가 자동 반영됩니다. 이 탭은 QC 데이터가 없는 과거 기간을 보완하거나 예외적으로 수동 반영할 때만 사용하세요.</div>
       <div style="font-size:13px;color:var(--text2);margin-bottom:10px">
         <strong style="color:var(--text)" data-i18n="eng_upload_filename">생산자별 월별 제품생산 수량 상세내역.xlsx</strong> <span data-i18n="format_word">형식</span><br>
         <span data-i18n="eng_upload_desc">시트 1개, 행: "(기수) 이름", 열: January~December 월별 생산수량, 마지막 열: Total</span>
+      </div>
+      <div class="fg" style="margin-bottom:10px">
+        <label data-i18n="apply_year_label">연도</label>
+        <input type="number" id="engagement-year" placeholder="예: 2026" style="max-width:120px">
       </div>
       <div id="engagement-drop-zone" class="drop-zone" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event,'engagement')">
         <div style="font-size:28px;margin-bottom:8px">📂</div>
@@ -606,8 +625,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
         </label>
       </div>
       <div id="engagement-upload-result" style="margin-top:10px"></div>
-      <div style="font-size:12px;color:var(--text3);margin-top:8px" data-i18n="eng_overwrite_warn">⚠ 기존 참여도 데이터를 새 파일 내용으로 완전히 덮어씁니다. 매월 누적된 최신 파일을 업로드하세요.</div>
+      <div style="font-size:12px;color:var(--text3);margin-top:8px" data-i18n="eng_overwrite_warn">⚠ 지정한 연도의 월별 데이터만 새 파일 내용으로 교체되고, 다른 연도의 이력은 그대로 유지됩니다. QC 이력이 있는 달은 QC 기반 값으로 다시 덮일 수 있습니다.</div>
     </div>
+
 
     <!-- JSON 백업 복원 -->
     <div id="utab-json" class="utab-content" style="display:none">
@@ -631,9 +651,9 @@ const DEFAULT_LABOR={"Gloria bag(L)":10000,"Gloria bag(S)":10000,"Elephant bag(L
 // ── QC 데이터 (May 2026) ──
 // 이름 매핑: QC 파일 이름 → PRODUCERS 이름 (부분 일치로 처리)
 const QC_DATA_MAY={"Fahima Birungi":{"batch":1,"submitted":30,"qcPass":22,"rate":73.3,"products":[{"product":"Rope Head Band","submitted":30,"qc_pass":22}]},"Grace Kityo Nababi":{"batch":1,"submitted":34,"qcPass":34,"rate":100.0,"products":[{"product":"Cup holder","submitted":16,"qc_pass":16},{"product":"Shoppers Bag(Ecobag) v3","submitted":18,"qc_pass":18}]},"Josephine Nagawa":{"batch":1,"submitted":10,"qcPass":10,"rate":100.0,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Nabaasa Monica":{"batch":1,"submitted":10,"qcPass":10,"rate":100.0,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Nambooze Robinah":{"batch":1,"submitted":45,"qcPass":36,"rate":80.0,"products":[{"product":"Rope Head Band","submitted":35,"qc_pass":26},{"product":"Gloria bag (L)","submitted":10,"qc_pass":10}]},"Prossy Mutesi":{"batch":1,"submitted":46,"qcPass":27,"rate":58.7,"products":[{"product":"Fortune Fish (L)","submitted":46,"qc_pass":27}]},"Alelo Susan":{"batch":2,"submitted":12,"qcPass":5,"rate":41.7,"products":[{"product":"Dolphin (S)","submitted":4,"qc_pass":0},{"product":"Whale (S)","submitted":4,"qc_pass":2},{"product":"Seahorse (S)","submitted":4,"qc_pass":3}]},"Amina Ajambo":{"batch":2,"submitted":16,"qcPass":8,"rate":50.0,"products":[{"product":"Seahorse (S)","submitted":9,"qc_pass":8},{"product":"Picnic bag","submitted":3,"qc_pass":0},{"product":"Square Pouch","submitted":4,"qc_pass":0}]},"Babirye Shakirah":{"batch":2,"submitted":6,"qcPass":6,"rate":100.0,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":4,"qc_pass":4},{"product":"Fortune Fish (S)","submitted":2,"qc_pass":2}]},"Fatuma Aisha":{"batch":2,"submitted":72,"qcPass":85,"rate":100.0,"products":[{"product":"Seahorse (S)","submitted":50,"qc_pass":37},{"product":"Whale (S)","submitted":8,"qc_pass":8},{"product":"Jerrycan bag","submitted":9,"qc_pass":9}]},"Kiconco Benitah":{"batch":2,"submitted":20,"qcPass":18,"rate":90.0,"products":[{"product":"Apron","submitted":15,"qc_pass":13},{"product":"Upcycled Shoulder Bag","submitted":5,"qc_pass":5}]},"Lakot Dalina":{"batch":2,"submitted":50,"qcPass":6,"rate":12.0,"products":[{"product":"Hair Band_V2","submitted":50,"qc_pass":6}]},"Nakalyango Fatumah":{"batch":2,"submitted":15,"qcPass":16,"rate":100.0,"products":[{"product":"Turtle (L)","submitted":15,"qc_pass":10}]},"Nampima Gladys":{"batch":2,"submitted":56,"qcPass":44,"rate":78.6,"products":[{"product":"Seahorse (S)","submitted":51,"qc_pass":10},{"product":"Leaf keyring","submitted":5,"qc_pass":4}]},"Natuhwera Fatia":{"batch":2,"submitted":19,"qcPass":9,"rate":47.4,"products":[{"product":"Tote bag","submitted":8,"qc_pass":2},{"product":"Whale (L)","submitted":11,"qc_pass":7}]},"Fatumah Nakawemba":{"batch":2,"submitted":50,"qcPass":0,"rate":0.0,"products":[{"product":"Fortune fish (S)","submitted":50,"qc_pass":0}]},"Atim Brenda":{"batch":3,"submitted":19,"qcPass":35,"rate":100.0,"products":[{"product":"Turtle (L)","submitted":19,"qc_pass":8},{"product":"Shoppers Bag v3","submitted":0,"qc_pass":27}]},"Namubiru Marion":{"batch":3,"submitted":20,"qcPass":39,"rate":100.0,"products":[{"product":"Classic Wallet","submitted":20,"qc_pass":20}]},"Namukwaya Mariam":{"batch":3,"submitted":6,"qcPass":6,"rate":100.0,"products":[{"product":"Picnic bag","submitted":3,"qc_pass":3},{"product":"Square Pouch","submitted":3,"qc_pass":3}]},"Mercy Anet":{"batch":3,"submitted":12,"qcPass":0,"rate":0.0,"products":[{"product":"Book bag v2","submitted":12,"qc_pass":0}]},"Naigaga Bitamisi":{"batch":3,"submitted":26,"qcPass":0,"rate":0.0,"products":[{"product":"Shoppers Bag v2","submitted":26,"qc_pass":0}]},"Alituha Daize":{"batch":4,"submitted":0,"qcPass":19,"rate":100.0,"products":[{"product":"Turtle (L)","submitted":0,"qc_pass":19}]},"Katushabe Flavia":{"batch":4,"submitted":27,"qcPass":27,"rate":100.0,"products":[{"product":"Shoppers Bag v3","submitted":27,"qc_pass":27}]},"Nabayego Brendah":{"batch":4,"submitted":100,"qcPass":41,"rate":41.0,"products":[{"product":"Head band","submitted":97,"qc_pass":41},{"product":"Picnic bag","submitted":3,"qc_pass":0}]},"Shamsa Namaganda":{"batch":4,"submitted":10,"qcPass":10,"rate":100.0,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Muhirwe Diana":{"batch":4,"submitted":29,"qcPass":0,"rate":0.0,"products":[{"product":"Book bag v2","submitted":29,"qc_pass":0}]},"Akello Vicky Joan":{"batch":5,"submitted":30,"qcPass":0,"rate":0.0,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":0}]},"Alezoyo Franceca":{"batch":5,"submitted":24,"qcPass":21,"rate":87.5,"products":[{"product":"Dolphin (S)","submitted":24,"qc_pass":13}]},"Aloyo Nancy":{"batch":5,"submitted":15,"qcPass":18,"rate":100.0,"products":[{"product":"Dolphin (S)","submitted":15,"qc_pass":9}]},"Chelengat Ritah":{"batch":5,"submitted":30,"qcPass":23,"rate":76.7,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":23}]},"Grace Nikuze":{"batch":5,"submitted":12,"qcPass":11,"rate":91.7,"products":[{"product":"Whale (S)","submitted":12,"qc_pass":0}]},"Karungi Kebirungi":{"batch":5,"submitted":49,"qcPass":22,"rate":44.9,"products":[{"product":"Kitenge straps","submitted":49,"qc_pass":22}]},"Lamwaka Josephine":{"batch":5,"submitted":47,"qcPass":47,"rate":100.0,"products":[{"product":"Kitenge straps","submitted":47,"qc_pass":47}]},"Nakisige Esther":{"batch":5,"submitted":26,"qcPass":6,"rate":23.1,"products":[{"product":"Book bag v2","submitted":26,"qc_pass":6}]},"Namulinda Zakiah":{"batch":5,"submitted":30,"qcPass":7,"rate":23.3,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":7}]},"Nandudu Halima":{"batch":5,"submitted":34,"qcPass":0,"rate":0.0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":0},{"product":"Two Pocket Pouch","submitted":4,"qc_pass":0}]},"Prisca Alimocan":{"batch":5,"submitted":58,"qcPass":27,"rate":46.6,"products":[{"product":"Basic Pouch","submitted":50,"qc_pass":17},{"product":"Whale (S)","submitted":8,"qc_pass":8}]},"Akasansira Evelyne":{"batch":6,"submitted":43,"qcPass":4,"rate":9.3,"products":[{"product":"Kitenge straps","submitted":43,"qc_pass":4}]},"Angucia Lillian":{"batch":6,"submitted":30,"qcPass":0,"rate":0.0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":0}]},"Hidri Tekleberhan":{"batch":6,"submitted":50,"qcPass":0,"rate":0.0,"products":[{"product":"Fortune Fish (S)","submitted":50,"qc_pass":0}]},"Namiro Deborah":{"batch":6,"submitted":35,"qcPass":12,"rate":34.3,"products":[{"product":"Kitenge straps","submitted":35,"qc_pass":12}]},"Namulwasira Mayimuna":{"batch":6,"submitted":30,"qcPass":3,"rate":10.0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":3}]},"Tino Peace Rhodah":{"batch":6,"submitted":30,"qcPass":1,"rate":3.3,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":1}]}};
-const DEFAULT_QC_HISTORY=[{"sheet":"May","label":"2026년 5월","uploadedAt":"2026-05-31T00:00:00.000Z","data":{"Fahima Birungi":{"batch":1,"submitted":30,"qcPass":22,"rate":73.3,"products":[{"product":"Rope Head Band","submitted":30,"qc_pass":22}]},"Grace Kityo Nababi":{"batch":1,"submitted":34,"qcPass":34,"rate":100,"products":[{"product":"Cup holder","submitted":16,"qc_pass":16},{"product":"Shoppers Bag(Ecobag) v3","submitted":18,"qc_pass":18}]},"Josephine Nagawa":{"batch":1,"submitted":10,"qcPass":10,"rate":100,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Nabaasa Monica":{"batch":1,"submitted":10,"qcPass":10,"rate":100,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Nambooze Robinah":{"batch":1,"submitted":45,"qcPass":36,"rate":80,"products":[{"product":"Rope Head Band","submitted":35,"qc_pass":26},{"product":"Gloria bag (L)","submitted":10,"qc_pass":10}]},"Prossy Mutesi":{"batch":1,"submitted":46,"qcPass":27,"rate":58.7,"products":[{"product":"Fortune Fish (L)","submitted":46,"qc_pass":27}]},"Alelo Susan":{"batch":2,"submitted":12,"qcPass":5,"rate":41.7,"products":[{"product":"Dolphin (S)","submitted":4,"qc_pass":0},{"product":"Whale (S)","submitted":4,"qc_pass":2},{"product":"Seahorse (S)","submitted":4,"qc_pass":3}]},"Amina Ajambo":{"batch":2,"submitted":16,"qcPass":8,"rate":50,"products":[{"product":"Seahorse (S)","submitted":9,"qc_pass":8},{"product":"Picnic bag","submitted":3,"qc_pass":0},{"product":"Square Pouch","submitted":4,"qc_pass":0}]},"Babirye Shakirah":{"batch":2,"submitted":6,"qcPass":6,"rate":100,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":4,"qc_pass":4},{"product":"Fortune Fish (S)","submitted":2,"qc_pass":2}]},"Fatuma Aisha":{"batch":2,"submitted":72,"qcPass":85,"rate":100,"products":[{"product":"Seahorse (S)","submitted":50,"qc_pass":37},{"product":"Whale (S)","submitted":8,"qc_pass":8},{"product":"Jerrycan bag","submitted":9,"qc_pass":9}]},"Kiconco Benitah":{"batch":2,"submitted":20,"qcPass":18,"rate":90,"products":[{"product":"Apron","submitted":15,"qc_pass":13},{"product":"Upcycled Shoulder Bag","submitted":5,"qc_pass":5}]},"Lakot Dalina":{"batch":2,"submitted":50,"qcPass":6,"rate":12,"products":[{"product":"Hair Band_V2","submitted":50,"qc_pass":6}]},"Nakalyango Fatumah":{"batch":2,"submitted":15,"qcPass":16,"rate":100,"products":[{"product":"Turtle (L)","submitted":15,"qc_pass":10}]},"Nampima Gladys":{"batch":2,"submitted":56,"qcPass":44,"rate":78.6,"products":[{"product":"Seahorse (S)","submitted":51,"qc_pass":10},{"product":"Leaf keyring","submitted":5,"qc_pass":4}]},"Natuhwera Fatia":{"batch":2,"submitted":19,"qcPass":9,"rate":47.4,"products":[{"product":"Tote bag","submitted":8,"qc_pass":2},{"product":"Whale (L)","submitted":11,"qc_pass":7}]},"Fatumah Nakawemba":{"batch":2,"submitted":50,"qcPass":0,"rate":0,"products":[{"product":"Fortune fish (S)","submitted":50,"qc_pass":0}]},"Atim Brenda":{"batch":3,"submitted":19,"qcPass":35,"rate":100,"products":[{"product":"Turtle (L)","submitted":19,"qc_pass":8},{"product":"Shoppers Bag v3","submitted":0,"qc_pass":27}]},"Namubiru Marion":{"batch":3,"submitted":20,"qcPass":39,"rate":100,"products":[{"product":"Classic Wallet","submitted":20,"qc_pass":20}]},"Namukwaya Mariam":{"batch":3,"submitted":6,"qcPass":6,"rate":100,"products":[{"product":"Picnic bag","submitted":3,"qc_pass":3},{"product":"Square Pouch","submitted":3,"qc_pass":3}]},"Mercy Anet":{"batch":3,"submitted":12,"qcPass":0,"rate":0,"products":[{"product":"Book bag v2","submitted":12,"qc_pass":0}]},"Naigaga Bitamisi":{"batch":3,"submitted":26,"qcPass":0,"rate":0,"products":[{"product":"Shoppers Bag v2","submitted":26,"qc_pass":0}]},"Alituha Daize":{"batch":4,"submitted":0,"qcPass":19,"rate":100,"products":[{"product":"Turtle (L)","submitted":0,"qc_pass":19}]},"Katushabe Flavia":{"batch":4,"submitted":27,"qcPass":27,"rate":100,"products":[{"product":"Shoppers Bag v3","submitted":27,"qc_pass":27}]},"Nabayego Brendah":{"batch":4,"submitted":100,"qcPass":41,"rate":41,"products":[{"product":"Head band","submitted":97,"qc_pass":41},{"product":"Picnic bag","submitted":3,"qc_pass":0}]},"Shamsa Namaganda":{"batch":4,"submitted":10,"qcPass":10,"rate":100,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Muhirwe Diana":{"batch":4,"submitted":29,"qcPass":0,"rate":0,"products":[{"product":"Book bag v2","submitted":29,"qc_pass":0}]},"Akello Vicky Joan":{"batch":5,"submitted":30,"qcPass":0,"rate":0,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":0}]},"Alezoyo Franceca":{"batch":5,"submitted":24,"qcPass":21,"rate":87.5,"products":[{"product":"Dolphin (S)","submitted":24,"qc_pass":13}]},"Aloyo Nancy":{"batch":5,"submitted":15,"qcPass":18,"rate":100,"products":[{"product":"Dolphin (S)","submitted":15,"qc_pass":9}]},"Chelengat Ritah":{"batch":5,"submitted":30,"qcPass":23,"rate":76.7,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":23}]},"Grace Nikuze":{"batch":5,"submitted":12,"qcPass":11,"rate":91.7,"products":[{"product":"Whale (S)","submitted":12,"qc_pass":0}]},"Karungi Kebirungi":{"batch":5,"submitted":49,"qcPass":22,"rate":44.9,"products":[{"product":"Kitenge straps","submitted":49,"qc_pass":22}]},"Lamwaka Josephine":{"batch":5,"submitted":47,"qcPass":47,"rate":100,"products":[{"product":"Kitenge straps","submitted":47,"qc_pass":47}]},"Nakisige Esther":{"batch":5,"submitted":26,"qcPass":6,"rate":23.1,"products":[{"product":"Book bag v2","submitted":26,"qc_pass":6}]},"Namulinda Zakiah":{"batch":5,"submitted":30,"qcPass":7,"rate":23.3,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":7}]},"Nandudu Halima":{"batch":5,"submitted":34,"qcPass":0,"rate":0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":0},{"product":"Two Pocket Pouch","submitted":4,"qc_pass":0}]},"Prisca Alimocan":{"batch":5,"submitted":58,"qcPass":27,"rate":46.6,"products":[{"product":"Basic Pouch","submitted":50,"qc_pass":17},{"product":"Whale (S)","submitted":8,"qc_pass":8}]},"Akasansira Evelyne":{"batch":6,"submitted":43,"qcPass":4,"rate":9.3,"products":[{"product":"Kitenge straps","submitted":43,"qc_pass":4}]},"Angucia Lillian":{"batch":6,"submitted":30,"qcPass":0,"rate":0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":0}]},"Hidri Tekleberhan":{"batch":6,"submitted":50,"qcPass":0,"rate":0,"products":[{"product":"Fortune Fish (S)","submitted":50,"qc_pass":0}]},"Namiro Deborah":{"batch":6,"submitted":35,"qcPass":12,"rate":34.3,"products":[{"product":"Kitenge straps","submitted":35,"qc_pass":12}]},"Namulwasira Mayimuna":{"batch":6,"submitted":30,"qcPass":3,"rate":10,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":3}]},"Tino Peace Rhodah":{"batch":6,"submitted":30,"qcPass":1,"rate":3.3,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":1}]}}},{"sheet":"June","label":"June","uploadedAt":"2026-07-29T10:08:22.688Z","data":{"Nambooze Robinah":{"batch":1,"submitted":70,"qcPass":70,"products":[{"product":"Wrist pouch","submitted":50,"qc_pass":50},{"product":"Rope Head Band","submitted":10,"qc_pass":10},{"product":"Square Pouch","submitted":10,"qc_pass":10}],"rate":100},"Prossy Mutesi":{"batch":1,"submitted":69,"qcPass":67,"products":[{"product":"Pencil Case V1","submitted":50,"qc_pass":50},{"product":"Fortune Fish (L)","submitted":19,"qc_pass":17}],"rate":97.1},"Josephine Nagawa":{"batch":1,"submitted":50,"qcPass":37,"products":[{"product":"Pencil Case V1","submitted":50,"qc_pass":37}],"rate":74},"Fahima Birungi":{"batch":1,"submitted":58,"qcPass":43,"products":[{"product":"Pencil Case V2","submitted":50,"qc_pass":35},{"product":"Rope Head Band","submitted":8,"qc_pass":8}],"rate":74.1},"Nabaasa Monica":{"batch":1,"submitted":50,"qcPass":27,"products":[{"product":"Pencil Case V3","submitted":50,"qc_pass":27}],"rate":54},"Ritah Agabairwe":{"batch":2,"submitted":51,"qcPass":50,"products":[{"product":"Pot Gloves","submitted":51,"qc_pass":50}],"rate":98},"Fatuma Aisha":{"batch":2,"submitted":110,"qcPass":110,"products":[{"product":"Present pouch (L)","submitted":50,"qc_pass":50},{"product":"Seahorse (S)","submitted":14,"qc_pass":14},{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":30},{"product":"Square Pouch","submitted":16,"qc_pass":16}],"rate":100},"Nakawemba Fatuma":{"batch":2,"submitted":107,"qcPass":107,"products":[{"product":"Present pouch (S)","submitted":40,"qc_pass":40},{"product":"Present pouch (L)","submitted":18,"qc_pass":18},{"product":"Fortune Fish (S)","submitted":49,"qc_pass":49}],"rate":100},"Amina Ajambo":{"batch":2,"submitted":23,"qcPass":22,"products":[{"product":"Square Pouch","submitted":4,"qc_pass":4},{"product":"Picnic bag","submitted":3,"qc_pass":3},{"product":"Book bag v2","submitted":16,"qc_pass":15}],"rate":95.7},"Natuhwera Fatia":{"batch":2,"submitted":38,"qcPass":38,"products":[{"product":"Fortune Fish (L)","submitted":29,"qc_pass":29},{"product":"Whale (L)","submitted":3,"qc_pass":3},{"product":"Tote bag","submitted":6,"qc_pass":6}],"rate":100},"Lakot Dalina":{"batch":2,"submitted":94,"qcPass":89,"products":[{"product":"Wrist pouch","submitted":50,"qc_pass":45},{"product":"Hair Band_V2","submitted":44,"qc_pass":44}],"rate":94.7},"Babirye Shakirah":{"batch":2,"submitted":60,"qcPass":60,"products":[{"product":"Dolphin (S)","submitted":13,"qc_pass":13},{"product":"Square Pouch","submitted":37,"qc_pass":37},{"product":"Napkin","submitted":10,"qc_pass":10}],"rate":100},"Nakalyango Fatumah":{"batch":2,"submitted":5,"qcPass":5,"products":[{"product":"Turtle (L)","submitted":5,"qc_pass":5}],"rate":100},"Atim Brenda":{"batch":3,"submitted":136,"qcPass":123,"products":[{"product":"Pencil Case V1","submitted":51,"qc_pass":41},{"product":"Turtle (L)","submitted":9,"qc_pass":6},{"product":"Shoppers Bag(Ecobag) v3","submitted":56,"qc_pass":56},{"product":"Pot Gloves","submitted":10,"qc_pass":10},{"product":"Pencil Case V2(Makeup Pouch)","submitted":10,"qc_pass":10}],"rate":90.4},"Naigaga Bitamisi":{"batch":3,"submitted":30,"qcPass":19,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":19}],"rate":63.3},"Ntegyerize Mercy":{"batch":3,"submitted":35,"qcPass":32,"products":[{"product":"Book bag v2","submitted":29,"qc_pass":26},{"product":"Picnic bag","submitted":2,"qc_pass":2},{"product":"Square Pouch","submitted":4,"qc_pass":4}],"rate":91.4},"Birungi Fazira":{"batch":3,"submitted":29,"qcPass":28,"products":[{"product":"Stand Pouch","submitted":29,"qc_pass":28}],"rate":96.6},"Alituha Daize":{"batch":4,"submitted":30,"qcPass":29,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":29}],"rate":96.7},"Gafayo Angella":{"batch":4,"submitted":36,"qcPass":20,"products":[{"product":"Dolphin (S)","submitted":36,"qc_pass":20}],"rate":55.6},"Katushabe Flavia":{"batch":4,"submitted":47,"qcPass":39,"products":[{"product":"Hair Band_V2","submitted":47,"qc_pass":39}],"rate":83},"Nabayego Brendah":{"batch":4,"submitted":106,"qcPass":93,"products":[{"product":"Head band","submitted":58,"qc_pass":53},{"product":"Hair Band_V2","submitted":48,"qc_pass":40}],"rate":87.7},"Shamsa Namaganda":{"batch":4,"submitted":52,"qcPass":43,"products":[{"product":"Pot Gloves","submitted":52,"qc_pass":43}],"rate":82.7},"Lamwaka Josephine":{"batch":5,"submitted":48,"qcPass":48,"products":[{"product":"Hair Band_V2","submitted":48,"qc_pass":48}],"rate":100},"Tumuhimbise Michell Joan":{"batch":5,"submitted":50,"qcPass":40,"products":[{"product":"Present pouch (S)","submitted":40,"qc_pass":30},{"product":"Present pouch (L)","submitted":10,"qc_pass":10}],"rate":80},"Esther Angel Achola":{"batch":5,"submitted":49,"qcPass":35,"products":[{"product":"Present pouch (S)","submitted":49,"qc_pass":35}],"rate":71.4},"Feven Kibrom":{"batch":5,"submitted":50,"qcPass":42,"products":[{"product":"Present pouch (S)","submitted":50,"qc_pass":42}],"rate":84},"Abbo Nanzirina":{"batch":5,"submitted":50,"qcPass":35,"products":[{"product":"Wrist pouch","submitted":50,"qc_pass":35}],"rate":70},"Nabakka Aidah":{"batch":5,"submitted":50,"qcPass":42,"products":[{"product":"Pot Gloves","submitted":50,"qc_pass":42}],"rate":84},"Alezoyo Franceca":{"batch":5,"submitted":108,"qcPass":78,"products":[{"product":"Present pouch (L)","submitted":40,"qc_pass":40},{"product":"Present pouch (S)","submitted":40,"qc_pass":10},{"product":"Square Pouch","submitted":28,"qc_pass":28}],"rate":72.2},"Grace Nikuze":{"batch":5,"submitted":40,"qcPass":40,"products":[{"product":"Apron","submitted":15,"qc_pass":15},{"product":"Square Pouch","submitted":25,"qc_pass":25}],"rate":100},"Prisca Alimocan":{"batch":5,"submitted":113,"qcPass":113,"products":[{"product":"Whale (S)","submitted":50,"qc_pass":50},{"product":"Square Pouch","submitted":30,"qc_pass":30},{"product":"Basic Pouch","submitted":33,"qc_pass":33}],"rate":100},"Makoha Joan":{"batch":5,"submitted":30,"qcPass":20,"products":[{"product":"Wrist pouch","submitted":30,"qc_pass":20}],"rate":66.7},"Aloyo Nancy":{"batch":5,"submitted":110,"qcPass":103,"products":[{"product":"Wrist pouch","submitted":55,"qc_pass":55},{"product":"Whale (S)","submitted":8,"qc_pass":7},{"product":"Dolphin (S)","submitted":12,"qc_pass":6},{"product":"Square Pouch","submitted":25,"qc_pass":25},{"product":"Pencil Case V2","submitted":10,"qc_pass":10}],"rate":93.6},"Namulinda Zakiah":{"batch":5,"submitted":23,"qcPass":20,"products":[{"product":"Book bag v2","submitted":23,"qc_pass":20}],"rate":87},"Nandudu Halima":{"batch":5,"submitted":22,"qcPass":8,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":22,"qc_pass":8}],"rate":36.4},"Chelengat Ritah":{"batch":5,"submitted":7,"qcPass":7,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":7,"qc_pass":7}],"rate":100},"Karungi Kebirungi":{"batch":5,"submitted":61,"qcPass":9,"products":[{"product":"Dolphin (S)","submitted":34,"qc_pass":9},{"product":"Kitenge Strap","submitted":27,"qc_pass":0}],"rate":14.8},"Nakisige Esther":{"batch":5,"submitted":20,"qcPass":20,"products":[{"product":"Book bag v2","submitted":20,"qc_pass":20}],"rate":100},"Pinyolola Pamela Elizabeth":{"batch":5,"submitted":35,"qcPass":35,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":35,"qc_pass":35}],"rate":100},"Kahendeka Hildah":{"batch":5,"submitted":35,"qcPass":35,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":35,"qc_pass":35}],"rate":100},"Nanyondo Joan":{"batch":6,"submitted":50,"qcPass":50,"products":[{"product":"Pencil Case V1","submitted":50,"qc_pass":50}],"rate":100},"Hidri Tekleberhan":{"batch":6,"submitted":50,"qcPass":43,"products":[{"product":"Fortune Fish (S)","submitted":50,"qc_pass":43}],"rate":86},"Angucia Lillian":{"batch":6,"submitted":30,"qcPass":30,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":30}],"rate":100},"Tuhaise G Priah":{"batch":6,"submitted":30,"qcPass":28,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":28}],"rate":93.3},"G. Lades":{"batch":6,"submitted":30,"qcPass":28,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":28}],"rate":93.3},"Namajja Rebecca":{"batch":6,"submitted":30,"qcPass":30,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":30}],"rate":100},"Namulwasira Mayimuna":{"batch":6,"submitted":27,"qcPass":25,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":27,"qc_pass":25}],"rate":92.6},"Kwagala Victoria Nabulya":{"batch":6,"submitted":12,"qcPass":7,"products":[{"product":"Whale (S)","submitted":12,"qc_pass":7}],"rate":58.3},"Tino Peace Rhodah":{"batch":6,"submitted":29,"qcPass":25,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":29,"qc_pass":25}],"rate":86.2}}},{"sheet":"July","label":"July","uploadedAt":"2026-07-30T13:09:48.745Z","data":{"Nabaasa Monica":{"batch":1,"submitted":63,"qcPass":58,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Pencil Case V1","submitted":23,"qc_pass":18}],"rate":92.1},"Prossy Mutesi":{"batch":1,"submitted":50,"qcPass":50,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Shoppers Bag(Ecobag) v3","submitted":10,"qc_pass":10}],"rate":100},"Josephine Nagawa":{"batch":1,"submitted":53,"qcPass":53,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Pencil Case V1","submitted":13,"qc_pass":13}],"rate":100},"Fahima Birungi":{"batch":1,"submitted":55,"qcPass":52,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Pencil Case V1","submitted":15,"qc_pass":12}],"rate":94.5},"Nambooze Robinah":{"batch":1,"submitted":65,"qcPass":65,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Shoppers Bag(Ecobag) v3","submitted":25,"qc_pass":25}],"rate":100},"Ruth Nakyanzi":{"batch":1,"submitted":30,"qcPass":30,"products":[{"product":"Jerrycan bag","submitted":30,"qc_pass":30}],"rate":100},"Nampima Gladys":{"batch":2,"submitted":185,"qcPass":161,"products":[{"product":"Book bag v2","submitted":50,"qc_pass":38},{"product":"Flower Keyring","submitted":102,"qc_pass":102},{"product":"Seahorse (S)","submitted":33,"qc_pass":21}],"rate":87},"Babirye Shakirah":{"batch":2,"submitted":18,"qcPass":18,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10},{"product":"Shoppers Bag(Ecobag) v3","submitted":8,"qc_pass":8}],"rate":100},"Lakot Dalina":{"batch":2,"submitted":38,"qcPass":36,"products":[{"product":"Jerrycan bag","submitted":38,"qc_pass":36}],"rate":94.7},"Fatuma Aisha":{"batch":2,"submitted":66,"qcPass":66,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Shoppers Bag(Ecobag) v3","submitted":21,"qc_pass":21},{"product":"Square Pouch","submitted":5,"qc_pass":5}],"rate":100},"Kiconco Benitah":{"batch":2,"submitted":30,"qcPass":30,"products":[{"product":"Jerrycan bag","submitted":30,"qc_pass":30}],"rate":100},"Amina Ajambo":{"batch":2,"submitted":30,"qcPass":30,"products":[{"product":"Jerrycan bag","submitted":30,"qc_pass":30}],"rate":100},"Nakalyango Fatumah":{"batch":2,"submitted":30,"qcPass":30,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":30}],"rate":100},"Naigino Edith":{"batch":2,"submitted":47,"qcPass":41,"products":[{"product":"Present pouch (L)","submitted":9,"qc_pass":7},{"product":"Present pouch (S)","submitted":38,"qc_pass":34}],"rate":87.2},"Alelo Susan":{"batch":2,"submitted":40,"qcPass":29,"products":[{"product":"Present pouch (L)","submitted":20,"qc_pass":16},{"product":"Present pouch (S)","submitted":20,"qc_pass":13}],"rate":72.5},"Atim Brenda":{"batch":3,"submitted":38,"qcPass":38,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":30},{"product":"Shoppers Bag(Ecobag) v3","submitted":8,"qc_pass":8}],"rate":100},"Naigaga Bitamisi":{"batch":3,"submitted":10,"qcPass":10,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}],"rate":100},"Birungi Fazira":{"batch":3,"submitted":41,"qcPass":30,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":20},{"product":"Stand Pouch","submitted":21,"qc_pass":10}],"rate":73.2},"Namubiru Marion":{"batch":3,"submitted":30,"qcPass":30,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":30}],"rate":100},"Ntegyerize Mercy":{"batch":3,"submitted":21,"qcPass":21,"products":[{"product":"Jerrycan bag","submitted":19,"qc_pass":19},{"product":"Book bag v2","submitted":2,"qc_pass":2}],"rate":100},"Nabayego Brendah":{"batch":4,"submitted":28,"qcPass":27,"products":[{"product":"Hair Band_V2","submitted":8,"qc_pass":7},{"product":"Jerrycan bag","submitted":20,"qc_pass":20}],"rate":96.4},"Shamsa Namaganda":{"batch":4,"submitted":20,"qcPass":20,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":20}],"rate":100},"Katushabe Flavia":{"batch":4,"submitted":20,"qcPass":19,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":20,"qc_pass":19}],"rate":95},"Akanyongera Gloria":{"batch":4,"submitted":13,"qcPass":11,"products":[{"product":"Jerrycan bag","submitted":13,"qc_pass":11}],"rate":84.6},"Muhirwe diana":{"batch":4,"submitted":29,"qcPass":8,"products":[{"product":"Book bag v2","submitted":29,"qc_pass":8}],"rate":27.6},"Prisca Alimocan":{"batch":5,"submitted":71,"qcPass":61,"products":[{"product":"Book bag v2","submitted":50,"qc_pass":40},{"product":"Shoppers Bag(Ecobag) v3","submitted":15,"qc_pass":15},{"product":"Square Pouch","submitted":6,"qc_pass":6}],"rate":85.9},"Lamwaka Josephine":{"batch":5,"submitted":20,"qcPass":18,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":18}],"rate":90},"Alezoyo Franceca":{"batch":5,"submitted":19,"qcPass":16,"products":[{"product":"Jerrycan bag","submitted":19,"qc_pass":16}],"rate":84.2},"Grace Nikuze":{"batch":5,"submitted":25,"qcPass":24,"products":[{"product":"Jerrycan bag","submitted":17,"qc_pass":16},{"product":"Shoppers Bag(Ecobag) v3","submitted":8,"qc_pass":8}],"rate":96},"Nabakka Aidah":{"batch":5,"submitted":28,"qcPass":28,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":20},{"product":"Pot Gloves ","submitted":8,"qc_pass":8}],"rate":100},"Aloyo Nancy":{"batch":5,"submitted":25,"qcPass":25,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":20},{"product":"Shoppers Bag(Ecobag) v3","submitted":5,"qc_pass":5}],"rate":100},"Chelengat Ritah":{"batch":5,"submitted":20,"qcPass":20,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":20}],"rate":100},"Esther Angel Achola":{"batch":5,"submitted":34,"qcPass":17,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":15},{"product":"Present pouch (S)","submitted":14,"qc_pass":2}],"rate":50},"Nakisige Esther":{"batch":5,"submitted":18,"qcPass":16,"products":[{"product":"Jerrycan bag","submitted":18,"qc_pass":16}],"rate":88.9},"Kahendeka Hildah":{"batch":5,"submitted":46,"qcPass":46,"products":[{"product":"Hair Band_V2","submitted":46,"qc_pass":46}],"rate":100},"Pinyoloya Pamela Elizabeth":{"batch":5,"submitted":40,"qcPass":31,"products":[{"product":"Dolphin (S)","submitted":40,"qc_pass":31}],"rate":77.5},"Nandudu Halima":{"batch":5,"submitted":15,"qcPass":2,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":15,"qc_pass":2}],"rate":13.3},"Karungi Kebirungi":{"batch":5,"submitted":52,"qcPass":8,"products":[{"product":"Dolphin (S)","submitted":26,"qc_pass":8},{"product":"Kitenge strap","submitted":26,"qc_pass":0}],"rate":15.4},"Angucia Lillian":{"batch":6,"submitted":16,"qcPass":15,"products":[{"product":"Jerrycan bag","submitted":16,"qc_pass":15}],"rate":93.8},"Hidri Tekleberhan":{"batch":6,"submitted":7,"qcPass":7,"products":[{"product":"Fortune Fish (S)","submitted":7,"qc_pass":7}],"rate":100},"Nantongo Shakirah":{"batch":6,"submitted":30,"qcPass":25,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":25}],"rate":83.3},"Nalwadd Rashidah":{"batch":6,"submitted":30,"qcPass":4,"products":[{"product":"Wrist pouch","submitted":30,"qc_pass":4}],"rate":13.3},"Namajja Rebecca":{"batch":6,"submitted":13,"qcPass":0,"products":[{"product":"Jerrycan bag","submitted":13,"qc_pass":0}],"rate":0},"Namiro Deborah":{"batch":6,"submitted":13,"qcPass":0,"products":[{"product":"Kitenge strap","submitted":13,"qc_pass":0}],"rate":0},"Aluka Gladys":{"batch":6,"submitted":4,"qcPass":1,"products":[{"product":"Jerrycan bag","submitted":4,"qc_pass":1}],"rate":25}}}];
+const DEFAULT_QC_HISTORY=[{"sheet":"May","label":"2026년 5월","uploadedAt":"2026-05-31T00:00:00.000Z","data":{"Fahima Birungi":{"batch":1,"submitted":30,"qcPass":22,"rate":73.3,"products":[{"product":"Rope Head Band","submitted":30,"qc_pass":22}]},"Grace Kityo Nababi":{"batch":1,"submitted":34,"qcPass":34,"rate":100,"products":[{"product":"Cup holder","submitted":16,"qc_pass":16},{"product":"Shoppers Bag(Ecobag) v3","submitted":18,"qc_pass":18}]},"Josephine Nagawa":{"batch":1,"submitted":10,"qcPass":10,"rate":100,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Nabaasa Monica":{"batch":1,"submitted":10,"qcPass":10,"rate":100,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Nambooze Robinah":{"batch":1,"submitted":45,"qcPass":36,"rate":80,"products":[{"product":"Rope Head Band","submitted":35,"qc_pass":26},{"product":"Gloria bag (L)","submitted":10,"qc_pass":10}]},"Prossy Mutesi":{"batch":1,"submitted":46,"qcPass":27,"rate":58.7,"products":[{"product":"Fortune Fish (L)","submitted":46,"qc_pass":27}]},"Alelo Susan":{"batch":2,"submitted":12,"qcPass":5,"rate":41.7,"products":[{"product":"Dolphin (S)","submitted":4,"qc_pass":0},{"product":"Whale (S)","submitted":4,"qc_pass":2},{"product":"Seahorse (S)","submitted":4,"qc_pass":3}]},"Amina Ajambo":{"batch":2,"submitted":16,"qcPass":8,"rate":50,"products":[{"product":"Seahorse (S)","submitted":9,"qc_pass":8},{"product":"Picnic bag","submitted":3,"qc_pass":0},{"product":"Square Pouch","submitted":4,"qc_pass":0}]},"Babirye Shakirah":{"batch":2,"submitted":6,"qcPass":6,"rate":100,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":4,"qc_pass":4},{"product":"Fortune Fish (S)","submitted":2,"qc_pass":2}]},"Fatuma Aisha":{"batch":2,"submitted":72,"qcPass":85,"rate":100,"products":[{"product":"Seahorse (S)","submitted":50,"qc_pass":37},{"product":"Whale (S)","submitted":8,"qc_pass":8},{"product":"Jerrycan bag","submitted":9,"qc_pass":9}]},"Kiconco Benitah":{"batch":2,"submitted":20,"qcPass":18,"rate":90,"products":[{"product":"Apron","submitted":15,"qc_pass":13},{"product":"Upcycled Shoulder Bag","submitted":5,"qc_pass":5}]},"Lakot Dalina":{"batch":2,"submitted":50,"qcPass":6,"rate":12,"products":[{"product":"Hair Band_V2","submitted":50,"qc_pass":6}]},"Nakalyango Fatumah":{"batch":2,"submitted":15,"qcPass":16,"rate":100,"products":[{"product":"Turtle (L)","submitted":15,"qc_pass":10}]},"Nampima Gladys":{"batch":2,"submitted":56,"qcPass":44,"rate":78.6,"products":[{"product":"Seahorse (S)","submitted":51,"qc_pass":10},{"product":"Leaf keyring","submitted":5,"qc_pass":4}]},"Natuhwera Fatia":{"batch":2,"submitted":19,"qcPass":9,"rate":47.4,"products":[{"product":"Tote bag","submitted":8,"qc_pass":2},{"product":"Whale (L)","submitted":11,"qc_pass":7}]},"Fatumah Nakawemba":{"batch":2,"submitted":50,"qcPass":0,"rate":0,"products":[{"product":"Fortune fish (S)","submitted":50,"qc_pass":0}]},"Atim Brenda":{"batch":3,"submitted":19,"qcPass":35,"rate":100,"products":[{"product":"Turtle (L)","submitted":19,"qc_pass":8},{"product":"Shoppers Bag v3","submitted":0,"qc_pass":27}]},"Namubiru Marion":{"batch":3,"submitted":20,"qcPass":39,"rate":100,"products":[{"product":"Classic Wallet","submitted":20,"qc_pass":20}]},"Namukwaya Mariam":{"batch":3,"submitted":6,"qcPass":6,"rate":100,"products":[{"product":"Picnic bag","submitted":3,"qc_pass":3},{"product":"Square Pouch","submitted":3,"qc_pass":3}]},"Mercy Anet":{"batch":3,"submitted":12,"qcPass":0,"rate":0,"products":[{"product":"Book bag v2","submitted":12,"qc_pass":0}]},"Naigaga Bitamisi":{"batch":3,"submitted":26,"qcPass":0,"rate":0,"products":[{"product":"Shoppers Bag v2","submitted":26,"qc_pass":0}]},"Alituha Daize":{"batch":4,"submitted":0,"qcPass":19,"rate":100,"products":[{"product":"Turtle (L)","submitted":0,"qc_pass":19}]},"Katushabe Flavia":{"batch":4,"submitted":27,"qcPass":27,"rate":100,"products":[{"product":"Shoppers Bag v3","submitted":27,"qc_pass":27}]},"Nabayego Brendah":{"batch":4,"submitted":100,"qcPass":41,"rate":41,"products":[{"product":"Head band","submitted":97,"qc_pass":41},{"product":"Picnic bag","submitted":3,"qc_pass":0}]},"Shamsa Namaganda":{"batch":4,"submitted":10,"qcPass":10,"rate":100,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}]},"Muhirwe Diana":{"batch":4,"submitted":29,"qcPass":0,"rate":0,"products":[{"product":"Book bag v2","submitted":29,"qc_pass":0}]},"Akello Vicky Joan":{"batch":5,"submitted":30,"qcPass":0,"rate":0,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":0}]},"Alezoyo Franceca":{"batch":5,"submitted":24,"qcPass":21,"rate":87.5,"products":[{"product":"Dolphin (S)","submitted":24,"qc_pass":13}]},"Aloyo Nancy":{"batch":5,"submitted":15,"qcPass":18,"rate":100,"products":[{"product":"Dolphin (S)","submitted":15,"qc_pass":9}]},"Chelengat Ritah":{"batch":5,"submitted":30,"qcPass":23,"rate":76.7,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":23}]},"Grace Nikuze":{"batch":5,"submitted":12,"qcPass":11,"rate":91.7,"products":[{"product":"Whale (S)","submitted":12,"qc_pass":0}]},"Karungi Kebirungi":{"batch":5,"submitted":49,"qcPass":22,"rate":44.9,"products":[{"product":"Kitenge straps","submitted":49,"qc_pass":22}]},"Lamwaka Josephine":{"batch":5,"submitted":47,"qcPass":47,"rate":100,"products":[{"product":"Kitenge straps","submitted":47,"qc_pass":47}]},"Nakisige Esther":{"batch":5,"submitted":26,"qcPass":6,"rate":23.1,"products":[{"product":"Book bag v2","submitted":26,"qc_pass":6}]},"Namulinda Zakiah":{"batch":5,"submitted":30,"qcPass":7,"rate":23.3,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":7}]},"Nandudu Halima":{"batch":5,"submitted":34,"qcPass":0,"rate":0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":0},{"product":"Two Pocket Pouch","submitted":4,"qc_pass":0}]},"Prisca Alimocan":{"batch":5,"submitted":58,"qcPass":27,"rate":46.6,"products":[{"product":"Basic Pouch","submitted":50,"qc_pass":17},{"product":"Whale (S)","submitted":8,"qc_pass":8}]},"Akasansira Evelyne":{"batch":6,"submitted":43,"qcPass":4,"rate":9.3,"products":[{"product":"Kitenge straps","submitted":43,"qc_pass":4}]},"Angucia Lillian":{"batch":6,"submitted":30,"qcPass":0,"rate":0,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":0}]},"Hidri Tekleberhan":{"batch":6,"submitted":50,"qcPass":0,"rate":0,"products":[{"product":"Fortune Fish (S)","submitted":50,"qc_pass":0}]},"Namiro Deborah":{"batch":6,"submitted":35,"qcPass":12,"rate":34.3,"products":[{"product":"Kitenge straps","submitted":35,"qc_pass":12}]},"Namulwasira Mayimuna":{"batch":6,"submitted":30,"qcPass":3,"rate":10,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":3}]},"Tino Peace Rhodah":{"batch":6,"submitted":30,"qcPass":1,"rate":3.3,"products":[{"product":"Shoppers Bag v3","submitted":30,"qc_pass":1}]}},"year":2026,"periodKey":"2026-05"},{"sheet":"June","label":"2026년 6월","uploadedAt":"2026-07-29T10:08:22.688Z","data":{"Nambooze Robinah":{"batch":1,"submitted":70,"qcPass":70,"products":[{"product":"Wrist pouch","submitted":50,"qc_pass":50},{"product":"Rope Head Band","submitted":10,"qc_pass":10},{"product":"Square Pouch","submitted":10,"qc_pass":10}],"rate":100},"Prossy Mutesi":{"batch":1,"submitted":69,"qcPass":67,"products":[{"product":"Pencil Case V1","submitted":50,"qc_pass":50},{"product":"Fortune Fish (L)","submitted":19,"qc_pass":17}],"rate":97.1},"Josephine Nagawa":{"batch":1,"submitted":50,"qcPass":37,"products":[{"product":"Pencil Case V1","submitted":50,"qc_pass":37}],"rate":74},"Fahima Birungi":{"batch":1,"submitted":58,"qcPass":43,"products":[{"product":"Pencil Case V2","submitted":50,"qc_pass":35},{"product":"Rope Head Band","submitted":8,"qc_pass":8}],"rate":74.1},"Nabaasa Monica":{"batch":1,"submitted":50,"qcPass":27,"products":[{"product":"Pencil Case V3","submitted":50,"qc_pass":27}],"rate":54},"Ritah Agabairwe":{"batch":2,"submitted":51,"qcPass":50,"products":[{"product":"Pot Gloves","submitted":51,"qc_pass":50}],"rate":98},"Fatuma Aisha":{"batch":2,"submitted":110,"qcPass":110,"products":[{"product":"Present pouch (L)","submitted":50,"qc_pass":50},{"product":"Seahorse (S)","submitted":14,"qc_pass":14},{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":30},{"product":"Square Pouch","submitted":16,"qc_pass":16}],"rate":100},"Nakawemba Fatuma":{"batch":2,"submitted":107,"qcPass":107,"products":[{"product":"Present pouch (S)","submitted":40,"qc_pass":40},{"product":"Present pouch (L)","submitted":18,"qc_pass":18},{"product":"Fortune Fish (S)","submitted":49,"qc_pass":49}],"rate":100},"Amina Ajambo":{"batch":2,"submitted":23,"qcPass":22,"products":[{"product":"Square Pouch","submitted":4,"qc_pass":4},{"product":"Picnic bag","submitted":3,"qc_pass":3},{"product":"Book bag v2","submitted":16,"qc_pass":15}],"rate":95.7},"Natuhwera Fatia":{"batch":2,"submitted":38,"qcPass":38,"products":[{"product":"Fortune Fish (L)","submitted":29,"qc_pass":29},{"product":"Whale (L)","submitted":3,"qc_pass":3},{"product":"Tote bag","submitted":6,"qc_pass":6}],"rate":100},"Lakot Dalina":{"batch":2,"submitted":94,"qcPass":89,"products":[{"product":"Wrist pouch","submitted":50,"qc_pass":45},{"product":"Hair Band_V2","submitted":44,"qc_pass":44}],"rate":94.7},"Babirye Shakirah":{"batch":2,"submitted":60,"qcPass":60,"products":[{"product":"Dolphin (S)","submitted":13,"qc_pass":13},{"product":"Square Pouch","submitted":37,"qc_pass":37},{"product":"Napkin","submitted":10,"qc_pass":10}],"rate":100},"Nakalyango Fatumah":{"batch":2,"submitted":5,"qcPass":5,"products":[{"product":"Turtle (L)","submitted":5,"qc_pass":5}],"rate":100},"Atim Brenda":{"batch":3,"submitted":136,"qcPass":123,"products":[{"product":"Pencil Case V1","submitted":51,"qc_pass":41},{"product":"Turtle (L)","submitted":9,"qc_pass":6},{"product":"Shoppers Bag(Ecobag) v3","submitted":56,"qc_pass":56},{"product":"Pot Gloves","submitted":10,"qc_pass":10},{"product":"Pencil Case V2(Makeup Pouch)","submitted":10,"qc_pass":10}],"rate":90.4},"Naigaga Bitamisi":{"batch":3,"submitted":30,"qcPass":19,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":19}],"rate":63.3},"Ntegyerize Mercy":{"batch":3,"submitted":35,"qcPass":32,"products":[{"product":"Book bag v2","submitted":29,"qc_pass":26},{"product":"Picnic bag","submitted":2,"qc_pass":2},{"product":"Square Pouch","submitted":4,"qc_pass":4}],"rate":91.4},"Birungi Fazira":{"batch":3,"submitted":29,"qcPass":28,"products":[{"product":"Stand Pouch","submitted":29,"qc_pass":28}],"rate":96.6},"Alituha Daize":{"batch":4,"submitted":30,"qcPass":29,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":29}],"rate":96.7},"Gafayo Angella":{"batch":4,"submitted":36,"qcPass":20,"products":[{"product":"Dolphin (S)","submitted":36,"qc_pass":20}],"rate":55.6},"Katushabe Flavia":{"batch":4,"submitted":47,"qcPass":39,"products":[{"product":"Hair Band_V2","submitted":47,"qc_pass":39}],"rate":83},"Nabayego Brendah":{"batch":4,"submitted":106,"qcPass":93,"products":[{"product":"Head band","submitted":58,"qc_pass":53},{"product":"Hair Band_V2","submitted":48,"qc_pass":40}],"rate":87.7},"Shamsa Namaganda":{"batch":4,"submitted":52,"qcPass":43,"products":[{"product":"Pot Gloves","submitted":52,"qc_pass":43}],"rate":82.7},"Lamwaka Josephine":{"batch":5,"submitted":48,"qcPass":48,"products":[{"product":"Hair Band_V2","submitted":48,"qc_pass":48}],"rate":100},"Tumuhimbise Michell Joan":{"batch":5,"submitted":50,"qcPass":40,"products":[{"product":"Present pouch (S)","submitted":40,"qc_pass":30},{"product":"Present pouch (L)","submitted":10,"qc_pass":10}],"rate":80},"Esther Angel Achola":{"batch":5,"submitted":49,"qcPass":35,"products":[{"product":"Present pouch (S)","submitted":49,"qc_pass":35}],"rate":71.4},"Feven Kibrom":{"batch":5,"submitted":50,"qcPass":42,"products":[{"product":"Present pouch (S)","submitted":50,"qc_pass":42}],"rate":84},"Abbo Nanzirina":{"batch":5,"submitted":50,"qcPass":35,"products":[{"product":"Wrist pouch","submitted":50,"qc_pass":35}],"rate":70},"Nabakka Aidah":{"batch":5,"submitted":50,"qcPass":42,"products":[{"product":"Pot Gloves","submitted":50,"qc_pass":42}],"rate":84},"Alezoyo Franceca":{"batch":5,"submitted":108,"qcPass":78,"products":[{"product":"Present pouch (L)","submitted":40,"qc_pass":40},{"product":"Present pouch (S)","submitted":40,"qc_pass":10},{"product":"Square Pouch","submitted":28,"qc_pass":28}],"rate":72.2},"Grace Nikuze":{"batch":5,"submitted":40,"qcPass":40,"products":[{"product":"Apron","submitted":15,"qc_pass":15},{"product":"Square Pouch","submitted":25,"qc_pass":25}],"rate":100},"Prisca Alimocan":{"batch":5,"submitted":113,"qcPass":113,"products":[{"product":"Whale (S)","submitted":50,"qc_pass":50},{"product":"Square Pouch","submitted":30,"qc_pass":30},{"product":"Basic Pouch","submitted":33,"qc_pass":33}],"rate":100},"Makoha Joan":{"batch":5,"submitted":30,"qcPass":20,"products":[{"product":"Wrist pouch","submitted":30,"qc_pass":20}],"rate":66.7},"Aloyo Nancy":{"batch":5,"submitted":110,"qcPass":103,"products":[{"product":"Wrist pouch","submitted":55,"qc_pass":55},{"product":"Whale (S)","submitted":8,"qc_pass":7},{"product":"Dolphin (S)","submitted":12,"qc_pass":6},{"product":"Square Pouch","submitted":25,"qc_pass":25},{"product":"Pencil Case V2","submitted":10,"qc_pass":10}],"rate":93.6},"Namulinda Zakiah":{"batch":5,"submitted":23,"qcPass":20,"products":[{"product":"Book bag v2","submitted":23,"qc_pass":20}],"rate":87},"Nandudu Halima":{"batch":5,"submitted":22,"qcPass":8,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":22,"qc_pass":8}],"rate":36.4},"Chelengat Ritah":{"batch":5,"submitted":7,"qcPass":7,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":7,"qc_pass":7}],"rate":100},"Karungi Kebirungi":{"batch":5,"submitted":61,"qcPass":9,"products":[{"product":"Dolphin (S)","submitted":34,"qc_pass":9},{"product":"Kitenge Strap","submitted":27,"qc_pass":0}],"rate":14.8},"Nakisige Esther":{"batch":5,"submitted":20,"qcPass":20,"products":[{"product":"Book bag v2","submitted":20,"qc_pass":20}],"rate":100},"Pinyolola Pamela Elizabeth":{"batch":5,"submitted":35,"qcPass":35,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":35,"qc_pass":35}],"rate":100},"Kahendeka Hildah":{"batch":5,"submitted":35,"qcPass":35,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":35,"qc_pass":35}],"rate":100},"Nanyondo Joan":{"batch":6,"submitted":50,"qcPass":50,"products":[{"product":"Pencil Case V1","submitted":50,"qc_pass":50}],"rate":100},"Hidri Tekleberhan":{"batch":6,"submitted":50,"qcPass":43,"products":[{"product":"Fortune Fish (S)","submitted":50,"qc_pass":43}],"rate":86},"Angucia Lillian":{"batch":6,"submitted":30,"qcPass":30,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":30}],"rate":100},"Tuhaise G Priah":{"batch":6,"submitted":30,"qcPass":28,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":28}],"rate":93.3},"G. Lades":{"batch":6,"submitted":30,"qcPass":28,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":28}],"rate":93.3},"Namajja Rebecca":{"batch":6,"submitted":30,"qcPass":30,"products":[{"product":"Book bag v2","submitted":30,"qc_pass":30}],"rate":100},"Namulwasira Mayimuna":{"batch":6,"submitted":27,"qcPass":25,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":27,"qc_pass":25}],"rate":92.6},"Kwagala Victoria Nabulya":{"batch":6,"submitted":12,"qcPass":7,"products":[{"product":"Whale (S)","submitted":12,"qc_pass":7}],"rate":58.3},"Tino Peace Rhodah":{"batch":6,"submitted":29,"qcPass":25,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":29,"qc_pass":25}],"rate":86.2}},"year":2026,"periodKey":"2026-06"},{"sheet":"July","label":"2026년 7월","uploadedAt":"2026-07-30T13:09:48.745Z","data":{"Nabaasa Monica":{"batch":1,"submitted":63,"qcPass":58,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Pencil Case V1","submitted":23,"qc_pass":18}],"rate":92.1},"Prossy Mutesi":{"batch":1,"submitted":50,"qcPass":50,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Shoppers Bag(Ecobag) v3","submitted":10,"qc_pass":10}],"rate":100},"Josephine Nagawa":{"batch":1,"submitted":53,"qcPass":53,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Pencil Case V1","submitted":13,"qc_pass":13}],"rate":100},"Fahima Birungi":{"batch":1,"submitted":55,"qcPass":52,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Pencil Case V1","submitted":15,"qc_pass":12}],"rate":94.5},"Nambooze Robinah":{"batch":1,"submitted":65,"qcPass":65,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Shoppers Bag(Ecobag) v3","submitted":25,"qc_pass":25}],"rate":100},"Ruth Nakyanzi":{"batch":1,"submitted":30,"qcPass":30,"products":[{"product":"Jerrycan bag","submitted":30,"qc_pass":30}],"rate":100},"Nampima Gladys":{"batch":2,"submitted":185,"qcPass":161,"products":[{"product":"Book bag v2","submitted":50,"qc_pass":38},{"product":"Flower Keyring","submitted":102,"qc_pass":102},{"product":"Seahorse (S)","submitted":33,"qc_pass":21}],"rate":87},"Babirye Shakirah":{"batch":2,"submitted":18,"qcPass":18,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10},{"product":"Shoppers Bag(Ecobag) v3","submitted":8,"qc_pass":8}],"rate":100},"Lakot Dalina":{"batch":2,"submitted":38,"qcPass":36,"products":[{"product":"Jerrycan bag","submitted":38,"qc_pass":36}],"rate":94.7},"Fatuma Aisha":{"batch":2,"submitted":66,"qcPass":66,"products":[{"product":"Jerrycan bag","submitted":40,"qc_pass":40},{"product":"Shoppers Bag(Ecobag) v3","submitted":21,"qc_pass":21},{"product":"Square Pouch","submitted":5,"qc_pass":5}],"rate":100},"Kiconco Benitah":{"batch":2,"submitted":30,"qcPass":30,"products":[{"product":"Jerrycan bag","submitted":30,"qc_pass":30}],"rate":100},"Amina Ajambo":{"batch":2,"submitted":30,"qcPass":30,"products":[{"product":"Jerrycan bag","submitted":30,"qc_pass":30}],"rate":100},"Nakalyango Fatumah":{"batch":2,"submitted":30,"qcPass":30,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":30}],"rate":100},"Naigino Edith":{"batch":2,"submitted":47,"qcPass":41,"products":[{"product":"Present pouch (L)","submitted":9,"qc_pass":7},{"product":"Present pouch (S)","submitted":38,"qc_pass":34}],"rate":87.2},"Alelo Susan":{"batch":2,"submitted":40,"qcPass":29,"products":[{"product":"Present pouch (L)","submitted":20,"qc_pass":16},{"product":"Present pouch (S)","submitted":20,"qc_pass":13}],"rate":72.5},"Atim Brenda":{"batch":3,"submitted":38,"qcPass":38,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":30},{"product":"Shoppers Bag(Ecobag) v3","submitted":8,"qc_pass":8}],"rate":100},"Naigaga Bitamisi":{"batch":3,"submitted":10,"qcPass":10,"products":[{"product":"Jerrycan bag","submitted":10,"qc_pass":10}],"rate":100},"Birungi Fazira":{"batch":3,"submitted":41,"qcPass":30,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":20},{"product":"Stand Pouch","submitted":21,"qc_pass":10}],"rate":73.2},"Namubiru Marion":{"batch":3,"submitted":30,"qcPass":30,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":30}],"rate":100},"Ntegyerize Mercy":{"batch":3,"submitted":21,"qcPass":21,"products":[{"product":"Jerrycan bag","submitted":19,"qc_pass":19},{"product":"Book bag v2","submitted":2,"qc_pass":2}],"rate":100},"Nabayego Brendah":{"batch":4,"submitted":28,"qcPass":27,"products":[{"product":"Hair Band_V2","submitted":8,"qc_pass":7},{"product":"Jerrycan bag","submitted":20,"qc_pass":20}],"rate":96.4},"Shamsa Namaganda":{"batch":4,"submitted":20,"qcPass":20,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":20}],"rate":100},"Katushabe Flavia":{"batch":4,"submitted":20,"qcPass":19,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":20,"qc_pass":19}],"rate":95},"Akanyongera Gloria":{"batch":4,"submitted":13,"qcPass":11,"products":[{"product":"Jerrycan bag","submitted":13,"qc_pass":11}],"rate":84.6},"Muhirwe diana":{"batch":4,"submitted":29,"qcPass":8,"products":[{"product":"Book bag v2","submitted":29,"qc_pass":8}],"rate":27.6},"Prisca Alimocan":{"batch":5,"submitted":71,"qcPass":61,"products":[{"product":"Book bag v2","submitted":50,"qc_pass":40},{"product":"Shoppers Bag(Ecobag) v3","submitted":15,"qc_pass":15},{"product":"Square Pouch","submitted":6,"qc_pass":6}],"rate":85.9},"Lamwaka Josephine":{"batch":5,"submitted":20,"qcPass":18,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":18}],"rate":90},"Alezoyo Franceca":{"batch":5,"submitted":19,"qcPass":16,"products":[{"product":"Jerrycan bag","submitted":19,"qc_pass":16}],"rate":84.2},"Grace Nikuze":{"batch":5,"submitted":25,"qcPass":24,"products":[{"product":"Jerrycan bag","submitted":17,"qc_pass":16},{"product":"Shoppers Bag(Ecobag) v3","submitted":8,"qc_pass":8}],"rate":96},"Nabakka Aidah":{"batch":5,"submitted":28,"qcPass":28,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":20},{"product":"Pot Gloves ","submitted":8,"qc_pass":8}],"rate":100},"Aloyo Nancy":{"batch":5,"submitted":25,"qcPass":25,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":20},{"product":"Shoppers Bag(Ecobag) v3","submitted":5,"qc_pass":5}],"rate":100},"Chelengat Ritah":{"batch":5,"submitted":20,"qcPass":20,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":20}],"rate":100},"Esther Angel Achola":{"batch":5,"submitted":34,"qcPass":17,"products":[{"product":"Jerrycan bag","submitted":20,"qc_pass":15},{"product":"Present pouch (S)","submitted":14,"qc_pass":2}],"rate":50},"Nakisige Esther":{"batch":5,"submitted":18,"qcPass":16,"products":[{"product":"Jerrycan bag","submitted":18,"qc_pass":16}],"rate":88.9},"Kahendeka Hildah":{"batch":5,"submitted":46,"qcPass":46,"products":[{"product":"Hair Band_V2","submitted":46,"qc_pass":46}],"rate":100},"Pinyoloya Pamela Elizabeth":{"batch":5,"submitted":40,"qcPass":31,"products":[{"product":"Dolphin (S)","submitted":40,"qc_pass":31}],"rate":77.5},"Nandudu Halima":{"batch":5,"submitted":15,"qcPass":2,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":15,"qc_pass":2}],"rate":13.3},"Karungi Kebirungi":{"batch":5,"submitted":52,"qcPass":8,"products":[{"product":"Dolphin (S)","submitted":26,"qc_pass":8},{"product":"Kitenge strap","submitted":26,"qc_pass":0}],"rate":15.4},"Angucia Lillian":{"batch":6,"submitted":16,"qcPass":15,"products":[{"product":"Jerrycan bag","submitted":16,"qc_pass":15}],"rate":93.8},"Hidri Tekleberhan":{"batch":6,"submitted":7,"qcPass":7,"products":[{"product":"Fortune Fish (S)","submitted":7,"qc_pass":7}],"rate":100},"Nantongo Shakirah":{"batch":6,"submitted":30,"qcPass":25,"products":[{"product":"Shoppers Bag(Ecobag) v3","submitted":30,"qc_pass":25}],"rate":83.3},"Nalwadd Rashidah":{"batch":6,"submitted":30,"qcPass":4,"products":[{"product":"Wrist pouch","submitted":30,"qc_pass":4}],"rate":13.3},"Namajja Rebecca":{"batch":6,"submitted":13,"qcPass":0,"products":[{"product":"Jerrycan bag","submitted":13,"qc_pass":0}],"rate":0},"Namiro Deborah":{"batch":6,"submitted":13,"qcPass":0,"products":[{"product":"Kitenge strap","submitted":13,"qc_pass":0}],"rate":0},"Aluka Gladys":{"batch":6,"submitted":4,"qcPass":1,"products":[{"product":"Jerrycan bag","submitted":4,"qc_pass":1}],"rate":25}},"year":2026,"periodKey":"2026-07"}];
 
-const DEFAULT_ENGAGEMENT_DATA={"BIRUNGI FAHIMA":{"total":353,"months":7,"monthly":{"January":100,"February":95,"March":5,"April":36,"May":22,"June":43,"July":52},"engagement":0.7078},"GRACE NABABI KITYO":{"total":328,"months":5,"monthly":{"January":131,"February":36,"March":43,"April":84,"May":34},"engagement":0.5932},"NAGAWA JOSEPHINE":{"total":305,"months":7,"monthly":{"January":87,"February":76,"March":8,"April":34,"May":10,"June":37,"July":53},"engagement":0.6523},"NABAASA MONICA":{"total":317,"months":6,"monthly":{"January":100,"February":103,"April":19,"May":10,"June":27,"July":58},"engagement":0.6233},"NAMBOOZE ROBINAH":{"total":606,"months":7,"monthly":{"January":154,"February":116,"March":8,"April":121,"May":48,"June":82,"July":77},"engagement":1},"MUTESI PROSSY":{"total":300,"months":7,"monthly":{"January":50,"February":45,"March":3,"April":17,"May":39,"June":84,"July":62},"engagement":0.6465},"NAKYANZI RUTH":{"total":201,"months":5,"monthly":{"January":83,"February":60,"March":7,"April":21,"July":30},"engagement":0.4465},"ALELO SUSAN":{"total":56,"months":5,"monthly":{"January":10,"February":9,"March":3,"May":5,"July":29},"engagement":0.279},"AMINA AJAMBO":{"total":303,"months":7,"monthly":{"January":45,"February":45,"March":19,"April":110,"May":20,"June":34,"July":30},"engagement":0.65},"BABIRYE SHAKIRAH":{"total":106,"months":4,"monthly":{"April":22,"May":6,"June":60,"July":18},"engagement":0.2939},"FATUMA AISHA":{"total":499,"months":7,"monthly":{"January":32,"February":30,"March":18,"April":158,"May":85,"June":110,"July":66},"engagement":0.8764},"KICONCO BENITAH":{"total":234,"months":7,"monthly":{"January":74,"February":20,"March":8,"April":42,"May":32,"June":14,"July":44},"engagement":0.5703},"LAKOT DALINA":{"total":286,"months":7,"monthly":{"January":46,"February":30,"March":6,"April":73,"May":6,"June":89,"July":36},"engagement":0.6304},"NAIGINO EDITH":{"total":82,"months":2,"monthly":{"February":41,"July":41},"engagement":0.1804},"NAKALYANGO FATUMAH":{"total":280,"months":6,"monthly":{"January":97,"February":25,"April":65,"May":30,"June":19,"July":44},"engagement":0.5806},"NAKAWEMBA FATUMA":{"total":143,"months":4,"monthly":{"February":5,"March":8,"April":23,"June":107},"engagement":0.3366},"NAMPIIMA GLADYS":{"total":525,"months":6,"monthly":{"January":47,"February":37,"March":88,"April":148,"May":44,"July":161},"engagement":0.8636},"NATUHWERA FATIA":{"total":248,"months":6,"monthly":{"January":44,"February":45,"April":70,"May":23,"June":52,"July":14},"engagement":0.5436},"AGABAIRWE RITAH":{"total":87,"months":4,"monthly":{"February":10,"March":6,"April":21,"June":50},"engagement":0.2719},"ATIM BRENDA":{"total":258,"months":5,"monthly":{"January":18,"April":44,"May":35,"June":123,"July":38},"engagement":0.5123},"BIRUNGI FAZIRA":{"total":65,"months":3,"monthly":{"March":7,"June":28,"July":30},"engagement":0.2037},"NAIGAGA BITAMISI":{"total":37,"months":4,"monthly":{"March":5,"April":3,"June":19,"July":10},"engagement":0.2142},"NAKAZIBWE MERCY":{"total":53,"months":1,"monthly":{"January":53},"engagement":0.1041},"MARION NAMUBIRU":{"total":268,"months":7,"monthly":{"January":75,"February":20,"March":8,"April":60,"May":51,"June":12,"July":42},"engagement":0.6096},"NAMUKWAYA MARIAM":{"total":83,"months":3,"monthly":{"January":64,"April":13,"May":6},"engagement":0.2244},"NTEGYERIZE MERCY":{"total":96,"months":4,"monthly":{"March":33,"April":10,"June":32,"July":21},"engagement":0.2823},"AKANYONGERA GLORIA":{"total":16,"months":2,"monthly":{"February":5,"July":11},"engagement":0.1042},"DAISY ALITUHA":{"total":104,"months":4,"monthly":{"April":14,"May":33,"June":43,"July":14},"engagement":0.2916},"ANGELLA GAFAYO":{"total":37,"months":2,"monthly":{"April":17,"June":20},"engagement":0.1285},"KATUSHABE FLAVIA":{"total":90,"months":4,"monthly":{"April":5,"May":27,"June":39,"July":19},"engagement":0.2754},"MUHIRWE DIANA":{"total":61,"months":4,"monthly":{"January":33,"February":10,"April":10,"July":8},"engagement":0.2419},"NABAYEGO BRENDAH":{"total":192,"months":4,"monthly":{"April":31,"May":41,"June":93,"July":27},"engagement":0.3932},"RAHMA NASSOZI":{"total":56,"months":3,"monthly":{"February":28,"March":8,"April":20},"engagement":0.1933},"NAMAGANDA SHAMSA":{"total":198,"months":6,"monthly":{"January":80,"February":20,"April":25,"May":10,"June":43,"July":20},"engagement":0.4859},"TUMUHIMBISE MICHELLE JOAN":{"total":54,"months":2,"monthly":{"April":14,"June":40},"engagement":0.1481},"ABBO NANZIRINA":{"total":42,"months":3,"monthly":{"March":2,"April":5,"June":35},"engagement":0.1771},"FRANCESCA ALEZOYO":{"total":189,"months":6,"monthly":{"February":21,"March":13,"April":39,"May":22,"June":78,"July":16},"engagement":0.4755},"ALOYO NANCY":{"total":244,"months":6,"monthly":{"February":15,"March":18,"April":60,"May":19,"June":105,"July":27},"engagement":0.539},"AWORI BETTY":{"total":7,"months":2,"monthly":{"February":1,"March":6},"engagement":0.0938},"CHELANGAT RITAH":{"total":68,"months":6,"monthly":{"February":7,"March":2,"April":9,"May":23,"June":7,"July":20},"engagement":0.3357},"ANGEL ACHOLA ESTHER":{"total":89,"months":5,"monthly":{"February":10,"March":3,"April":24,"June":35,"July":17},"engagement":0.3171},"FEVEN KIBROM":{"total":42,"months":1,"monthly":{"June":42},"engagement":0.0914},"KAHENDEKE HILDAH":{"total":146,"months":4,"monthly":{"February":18,"April":47,"June":35,"July":46},"engagement":0.3401},"Kalibbala Halima Wanyama":{"total":44,"months":4,"monthly":{"March":8,"April":12,"June":12,"July":12},"engagement":0.2223},"KARUNGI KEBIRUNGI":{"total":65,"months":6,"monthly":{"February":8,"March":6,"April":12,"May":22,"June":9,"July":8},"engagement":0.3322},"LAMWAKA JOSEPHINE":{"total":201,"months":6,"monthly":{"February":40,"March":21,"April":27,"May":47,"June":48,"July":18},"engagement":0.4893},"MAKOHA JOAN":{"total":50,"months":4,"monthly":{"February":5,"March":8,"April":17,"June":20},"engagement":0.2292},"NABAKKA AIDAH":{"total":136,"months":3,"monthly":{"April":66,"June":42,"July":28},"engagement":0.2857},"NAKISIGE ESTHER":{"total":61,"months":5,"monthly":{"March":4,"April":15,"May":6,"June":20,"July":16},"engagement":0.2847},"NAMULINDA ZAKIAH":{"total":95,"months":5,"monthly":{"February":24,"March":4,"April":40,"May":7,"June":20},"engagement":0.324},"NANDUDU HALIMA":{"total":17,"months":2,"monthly":{"June":8,"July":9},"engagement":0.1054},"GRACE NIKUZE":{"total":91,"months":4,"monthly":{"April":16,"May":11,"June":40,"July":24},"engagement":0.2765},"PAMELA PINYOLOYA":{"total":111,"months":4,"monthly":{"February":17,"April":28,"June":35,"July":31},"engagement":0.2996},"PRISCA ALIMOCAN":{"total":302,"months":6,"monthly":{"February":15,"March":8,"April":78,"May":27,"June":113,"July":61},"engagement":0.606},"AKASANSIRA EVELYNE":{"total":9,"months":2,"monthly":{"April":5,"May":4},"engagement":0.0961},"ALUKA GLADYS":{"total":29,"months":2,"monthly":{"June":28,"July":1},"engagement":0.1192},"ANGUCIA LILIAN":{"total":45,"months":2,"monthly":{"June":30,"July":15},"engagement":0.1377},"HIDRI TEKLEBERHAN":{"total":50,"months":2,"monthly":{"June":43,"July":7},"engagement":0.1435},"Kwalala Victoria Namulya":{"total":7,"months":1,"monthly":{"June":7},"engagement":0.0509},"NALWADD RASHIDAH":{"total":4,"months":1,"monthly":{"July":4},"engagement":0.0475},"NAMAJJA REBECCA":{"total":39,"months":2,"monthly":{"April":9,"June":30},"engagement":0.1308},"NAMIRO DEBORAH":{"total":12,"months":1,"monthly":{"May":12},"engagement":0.0567},"NAMULWASIRA MAYIMUNA":{"total":28,"months":2,"monthly":{"May":3,"June":25},"engagement":0.1181},"NANTONGO SHAKIRAH":{"total":28,"months":2,"monthly":{"April":3,"July":25},"engagement":0.1181},"NANYONDO JOAN":{"total":50,"months":1,"monthly":{"June":50},"engagement":0.1006},"TINO PEACE RHODAH":{"total":35,"months":3,"monthly":{"April":4,"May":1,"June":30},"engagement":0.169},"TUHAISE G PRIAH":{"total":28,"months":1,"monthly":{"June":28},"engagement":0.0752}};
+const DEFAULT_ENGAGEMENT_DATA={"BIRUNGI FAHIMA":{"monthly":{"2026-01":100,"2026-02":95,"2026-03":5,"2026-04":36,"2026-05":22,"2026-06":43,"2026-07":52},"total":353,"months":7},"GRACE NABABI KITYO":{"monthly":{"2026-01":131,"2026-02":36,"2026-03":43,"2026-04":84,"2026-05":34},"total":328,"months":5},"NAGAWA JOSEPHINE":{"monthly":{"2026-01":87,"2026-02":76,"2026-03":8,"2026-04":34,"2026-05":10,"2026-06":37,"2026-07":53},"total":305,"months":7},"NABAASA MONICA":{"monthly":{"2026-01":100,"2026-02":103,"2026-04":19,"2026-05":10,"2026-06":27,"2026-07":58},"total":317,"months":6},"NAMBOOZE ROBINAH":{"monthly":{"2026-01":154,"2026-02":116,"2026-03":8,"2026-04":121,"2026-05":48,"2026-06":82,"2026-07":77},"total":606,"months":7},"MUTESI PROSSY":{"monthly":{"2026-01":50,"2026-02":45,"2026-03":3,"2026-04":17,"2026-05":39,"2026-06":84,"2026-07":62},"total":300,"months":7},"NAKYANZI RUTH":{"monthly":{"2026-01":83,"2026-02":60,"2026-03":7,"2026-04":21,"2026-07":30},"total":201,"months":5},"ALELO SUSAN":{"monthly":{"2026-01":10,"2026-02":9,"2026-03":3,"2026-05":5,"2026-07":29},"total":56,"months":5},"AMINA AJAMBO":{"monthly":{"2026-01":45,"2026-02":45,"2026-03":19,"2026-04":110,"2026-05":20,"2026-06":34,"2026-07":30},"total":303,"months":7},"BABIRYE SHAKIRAH":{"monthly":{"2026-04":22,"2026-05":6,"2026-06":60,"2026-07":18},"total":106,"months":4},"FATUMA AISHA":{"monthly":{"2026-01":32,"2026-02":30,"2026-03":18,"2026-04":158,"2026-05":85,"2026-06":110,"2026-07":66},"total":499,"months":7},"KICONCO BENITAH":{"monthly":{"2026-01":74,"2026-02":20,"2026-03":8,"2026-04":42,"2026-05":32,"2026-06":14,"2026-07":44},"total":234,"months":7},"LAKOT DALINA":{"monthly":{"2026-01":46,"2026-02":30,"2026-03":6,"2026-04":73,"2026-05":6,"2026-06":89,"2026-07":36},"total":286,"months":7},"NAIGINO EDITH":{"monthly":{"2026-02":41,"2026-07":41},"total":82,"months":2},"NAKALYANGO FATUMAH":{"monthly":{"2026-01":97,"2026-02":25,"2026-04":65,"2026-05":30,"2026-06":19,"2026-07":44},"total":280,"months":6},"NAKAWEMBA FATUMA":{"monthly":{"2026-02":5,"2026-03":8,"2026-04":23,"2026-06":107},"total":143,"months":4},"NAMPIIMA GLADYS":{"monthly":{"2026-01":47,"2026-02":37,"2026-03":88,"2026-04":148,"2026-05":44,"2026-07":161},"total":525,"months":6},"NATUHWERA FATIA":{"monthly":{"2026-01":44,"2026-02":45,"2026-04":70,"2026-05":23,"2026-06":52,"2026-07":14},"total":248,"months":6},"AGABAIRWE RITAH":{"monthly":{"2026-02":10,"2026-03":6,"2026-04":21,"2026-06":50},"total":87,"months":4},"ATIM BRENDA":{"monthly":{"2026-01":18,"2026-04":44,"2026-05":35,"2026-06":123,"2026-07":38},"total":258,"months":5},"BIRUNGI FAZIRA":{"monthly":{"2026-03":7,"2026-06":28,"2026-07":30},"total":65,"months":3},"NAIGAGA BITAMISI":{"monthly":{"2026-03":5,"2026-04":3,"2026-06":19,"2026-07":10},"total":37,"months":4},"NAKAZIBWE MERCY":{"monthly":{"2026-01":53},"total":53,"months":1},"MARION NAMUBIRU":{"monthly":{"2026-01":75,"2026-02":20,"2026-03":8,"2026-04":60,"2026-05":51,"2026-06":12,"2026-07":42},"total":268,"months":7},"NAMUKWAYA MARIAM":{"monthly":{"2026-01":64,"2026-04":13,"2026-05":6},"total":83,"months":3},"NTEGYERIZE MERCY":{"monthly":{"2026-03":33,"2026-04":10,"2026-06":32,"2026-07":21},"total":96,"months":4},"AKANYONGERA GLORIA":{"monthly":{"2026-02":5,"2026-07":11},"total":16,"months":2},"DAISY ALITUHA":{"monthly":{"2026-04":14,"2026-05":33,"2026-06":43,"2026-07":14},"total":104,"months":4},"ANGELLA GAFAYO":{"monthly":{"2026-04":17,"2026-06":20},"total":37,"months":2},"KATUSHABE FLAVIA":{"monthly":{"2026-04":5,"2026-05":27,"2026-06":39,"2026-07":19},"total":90,"months":4},"MUHIRWE DIANA":{"monthly":{"2026-01":33,"2026-02":10,"2026-04":10,"2026-07":8},"total":61,"months":4},"NABAYEGO BRENDAH":{"monthly":{"2026-04":31,"2026-05":41,"2026-06":93,"2026-07":27},"total":192,"months":4},"RAHMA NASSOZI":{"monthly":{"2026-02":28,"2026-03":8,"2026-04":20},"total":56,"months":3},"NAMAGANDA SHAMSA":{"monthly":{"2026-01":80,"2026-02":20,"2026-04":25,"2026-05":10,"2026-06":43,"2026-07":20},"total":198,"months":6},"TUMUHIMBISE MICHELLE JOAN":{"monthly":{"2026-04":14,"2026-06":40},"total":54,"months":2},"ABBO NANZIRINA":{"monthly":{"2026-03":2,"2026-04":5,"2026-06":35},"total":42,"months":3},"FRANCESCA ALEZOYO":{"monthly":{"2026-02":21,"2026-03":13,"2026-04":39,"2026-05":22,"2026-06":78,"2026-07":16},"total":189,"months":6},"ALOYO NANCY":{"monthly":{"2026-02":15,"2026-03":18,"2026-04":60,"2026-05":19,"2026-06":105,"2026-07":27},"total":244,"months":6},"AWORI BETTY":{"monthly":{"2026-02":1,"2026-03":6},"total":7,"months":2},"CHELANGAT RITAH":{"monthly":{"2026-02":7,"2026-03":2,"2026-04":9,"2026-05":23,"2026-06":7,"2026-07":20},"total":68,"months":6},"ANGEL ACHOLA ESTHER":{"monthly":{"2026-02":10,"2026-03":3,"2026-04":24,"2026-06":35,"2026-07":17},"total":89,"months":5},"FEVEN KIBROM":{"monthly":{"2026-06":42},"total":42,"months":1},"KAHENDEKE HILDAH":{"monthly":{"2026-02":18,"2026-04":47,"2026-06":35,"2026-07":46},"total":146,"months":4},"Kalibbala Halima Wanyama":{"monthly":{"2026-03":8,"2026-04":12,"2026-06":12,"2026-07":12},"total":44,"months":4},"KARUNGI KEBIRUNGI":{"monthly":{"2026-02":8,"2026-03":6,"2026-04":12,"2026-05":22,"2026-06":9,"2026-07":8},"total":65,"months":6},"LAMWAKA JOSEPHINE":{"monthly":{"2026-02":40,"2026-03":21,"2026-04":27,"2026-05":47,"2026-06":48,"2026-07":18},"total":201,"months":6},"MAKOHA JOAN":{"monthly":{"2026-02":5,"2026-03":8,"2026-04":17,"2026-06":20},"total":50,"months":4},"NABAKKA AIDAH":{"monthly":{"2026-04":66,"2026-06":42,"2026-07":28},"total":136,"months":3},"NAKISIGE ESTHER":{"monthly":{"2026-03":4,"2026-04":15,"2026-05":6,"2026-06":20,"2026-07":16},"total":61,"months":5},"NAMULINDA ZAKIAH":{"monthly":{"2026-02":24,"2026-03":4,"2026-04":40,"2026-05":7,"2026-06":20},"total":95,"months":5},"NANDUDU HALIMA":{"monthly":{"2026-06":8,"2026-07":9},"total":17,"months":2},"GRACE NIKUZE":{"monthly":{"2026-04":16,"2026-05":11,"2026-06":40,"2026-07":24},"total":91,"months":4},"PAMELA PINYOLOYA":{"monthly":{"2026-02":17,"2026-04":28,"2026-06":35,"2026-07":31},"total":111,"months":4},"PRISCA ALIMOCAN":{"monthly":{"2026-02":15,"2026-03":8,"2026-04":78,"2026-05":27,"2026-06":113,"2026-07":61},"total":302,"months":6},"AKASANSIRA EVELYNE":{"monthly":{"2026-04":5,"2026-05":4},"total":9,"months":2},"ALUKA GLADYS":{"monthly":{"2026-06":28,"2026-07":1},"total":29,"months":2},"ANGUCIA LILIAN":{"monthly":{"2026-06":30,"2026-07":15},"total":45,"months":2},"HIDRI TEKLEBERHAN":{"monthly":{"2026-06":43,"2026-07":7},"total":50,"months":2},"Kwalala Victoria Namulya":{"monthly":{"2026-06":7},"total":7,"months":1},"NALWADD RASHIDAH":{"monthly":{"2026-07":4},"total":4,"months":1},"NAMAJJA REBECCA":{"monthly":{"2026-04":9,"2026-06":30},"total":39,"months":2},"NAMIRO DEBORAH":{"monthly":{"2026-05":12},"total":12,"months":1},"NAMULWASIRA MAYIMUNA":{"monthly":{"2026-05":3,"2026-06":25},"total":28,"months":2},"NANTONGO SHAKIRAH":{"monthly":{"2026-04":3,"2026-07":25},"total":28,"months":2},"NANYONDO JOAN":{"monthly":{"2026-06":50},"total":50,"months":1},"TINO PEACE RHODAH":{"monthly":{"2026-04":4,"2026-05":1,"2026-06":30},"total":35,"months":3},"TUHAISE G PRIAH":{"monthly":{"2026-06":28},"total":28,"months":1}};
 let ENGAGEMENT_DATA=JSON.parse(JSON.stringify(DEFAULT_ENGAGEMENT_DATA));
 
 // ── STATE ──
@@ -748,7 +768,8 @@ const I18N={
     eng_no_history:'참여 이력 없음',
     eng_upload_filename:'생산자별 월별 제품생산 수량 상세내역.xlsx',
     eng_upload_desc:'시트 1개, 행: "(기수) 이름", 열: January~December 월별 생산수량, 마지막 열: Total',
-    eng_overwrite_warn:'⚠ 기존 참여도 데이터를 새 파일 내용으로 완전히 덮어씁니다. 매월 누적된 최신 파일을 업로드하세요.',
+    eng_overwrite_warn:'⚠ 지정한 연도의 월별 데이터만 새 파일 내용으로 교체되고, 다른 연도의 이력은 그대로 유지됩니다. QC 이력이 있는 달은 QC 기반 값으로 다시 덮일 수 있습니다.',
+    eng_auto_from_qc_note:'💡 이제 QC 이력을 업로드하면 품목별 제출수량 × 노동비 단가로 참여도(생산가치)가 자동 반영됩니다. 이 탭은 QC 데이터가 없는 과거 기간을 보완하거나 예외적으로 수동 반영할 때만 사용하세요.',
     tab_grade:'🏆 등급 현황',
     grade_criteria_title:'🏆 등급 산정 기준', grade_ratio_label:'QC : 참여도 비율',
     grade_ratio_73:'QC 70% + 참여도 30%', grade_ratio_64:'QC 60% + 참여도 40%', grade_ratio_55:'QC 50% + 참여도 50%',
@@ -861,7 +882,8 @@ const I18N={
     eng_no_history:'No engagement history',
     eng_upload_filename:'HMP Monthly Production Details.xlsx',
     eng_upload_desc:'1 sheet, rows: "(Batch) Name", columns: January–December monthly output, last column: Total',
-    eng_overwrite_warn:'⚠ Completely overwrites existing engagement data with the new file. Upload the latest cumulative file each month.',
+    eng_overwrite_warn:'⚠ Only the selected year\'s monthly data is replaced by the new file; other years\' history is preserved. Months with QC history may later be overwritten by QC-derived values.',
+    eng_auto_from_qc_note:'💡 Engagement (production value) is now derived automatically from QC uploads: submitted quantity per product × labor fee. Use this tab only to backfill periods with no QC data, or for manual exceptions.',
     tab_grade:'🏆 Grade',
     grade_criteria_title:'🏆 Grading Criteria', grade_ratio_label:'QC : Engagement ratio',
     grade_ratio_73:'QC 70% + Engagement 30%', grade_ratio_64:'QC 60% + Engagement 40%', grade_ratio_55:'QC 50% + Engagement 50%',
@@ -911,7 +933,7 @@ function toggleLang(){
 }
 
 let capableTags=[],saveTimer=null;
-let settings={qcWeightMode:'medium',qcUnknownMode:'low',qcDecay:0.8,engagementWeight:'medium',gradeQcRatio:0.7};
+let settings={qcWeightMode:'medium',qcUnknownMode:'low',qcDecay:0.8,engagementWeight:'medium',gradeQcRatio:0.7,engagementDecay:0.8};
 
 // ── QC 누적 가중평균 계산 ──
 // QC_HISTORY: [{sheet, label, uploadedAt, data}, ...] 최신순
@@ -919,8 +941,11 @@ let settings={qcWeightMode:'medium',qcUnknownMode:'low',qcDecay:0.8,engagementWe
 function computeWeightedQC(){
   const history=window.QC_HISTORY||[];
   const decay=settings.qcDecay||0.8;
-  // 최신순 정렬 (uploadedAt 기준)
-  const sorted=[...history].sort((a,b)=>new Date(b.uploadedAt)-new Date(a.uploadedAt));
+  // 최신순 정렬 (periodKey 있으면 그 기준, 없으면 uploadedAt로 폴백 — 연도가 바뀌어도 정확한 시간순 보장)
+  const sorted=[...history].sort((a,b)=>{
+    if(a.periodKey&&b.periodKey) return b.periodKey.localeCompare(a.periodKey);
+    return new Date(b.uploadedAt)-new Date(a.uploadedAt);
+  });
   // HMP별 가중합 계산
   const weightedMap={}; // {qcName: {weightedRate, totalWeight, months:[{label,rate,weight}]}}
   sorted.forEach((month,idx)=>{
@@ -949,20 +974,25 @@ function computeWeightedQC(){
 }
 
 // ── 이름 매핑 (QC 이름 → PRODUCERS 이름) ──
+// QC 이름 하나를 PRODUCERS 이름으로 매칭 (buildQcNameMap과 동일한 토큰 매칭 로직 재사용)
+function matchQcNameToProducer(qcName){
+  const qcLower=qcName.toLowerCase();
+  const qcTokens=qcLower.split(/\s+/);
+  let best=null,bestScore=0;
+  PRODUCERS.forEach(p=>{
+    const pTokens=p.name.toLowerCase().split(/\s+/);
+    const matches=qcTokens.filter(t=>pTokens.some(pt=>pt.includes(t)||t.includes(pt))).length;
+    const score=matches/Math.max(qcTokens.length,pTokens.length);
+    if(score>bestScore&&score>0.4){bestScore=score;best=p.name;}
+  });
+  return best;
+}
+
 function buildQcNameMap(){
   const map={};
   const qcNames=Object.keys(window.QC_WEIGHTED||{});
   qcNames.forEach(qcName=>{
-    const qcLower=qcName.toLowerCase();
-    let best=null,bestScore=0;
-    PRODUCERS.forEach(p=>{
-      const pLower=p.name.toLowerCase();
-      const qcTokens=qcLower.split(/\s+/);
-      const pTokens=pLower.split(/\s+/);
-      const matches=qcTokens.filter(t=>pTokens.some(pt=>pt.includes(t)||t.includes(pt))).length;
-      const score=matches/Math.max(qcTokens.length,pTokens.length);
-      if(score>bestScore&&score>0.4){bestScore=score;best=p.name;}
-    });
+    const best=matchQcNameToProducer(qcName);
     if(best) map[qcName]=best;
   });
   return map;
@@ -984,47 +1014,85 @@ function getQcMonthDetail(producerName){
   return window.QC_WEIGHTED?.[qcEntry[0]]?.months||[];
 }
 
-// ── 참여도 동적 계산 (기수별 참여 시작월 반영) ──
-const ENG_MONTH_ORDER=['January','February','March','April','May','June','July','August','September','October','November','December'];
-// 선정 시기가 늦어 연초에 참여할 수 없었던 기수는 시작월을 지정. 지정 없으면 전체 데이터 시작월(보통 1월)부터 계산.
-const BATCH_ENGAGEMENT_START={5:'February',6:'April'};
+// ── 참여도 동적 계산 (연도 인식 + QC와 동일한 "최근 가중평균" 방식) ──
+// 월 키는 "YYYY-MM" 형식(예: "2026-05")을 사용해 연도가 바뀌어도 동일한 월(예: 1월)끼리 혼동되지 않도록 함.
 
-function engagementStartMonth(batch){
-  return BATCH_ENGAGEMENT_START[batch]||ENG_MONTH_ORDER[0];
+// 기간키("YYYY-MM")를 정렬·비교 가능한 정수로 변환 (예: "2026-05" -> 2026*12+5)
+function periodKeyToIndex(pk){
+  const [y,m]=pk.split('-').map(Number);
+  return y*12+m;
+}
+// 정수 인덱스를 다시 "YYYY-MM" 기간키로 변환 (periodKeyToIndex의 역함수)
+function indexToPeriodKey(idx){
+  const y=Math.floor((idx-1)/12),m=idx-y*12;
+  return `${y}-${String(m).padStart(2,'0')}`;
+}
+// 전체 ENGAGEMENT_DATA에서 존재하는 모든 기간키 정렬 목록
+function allEngagementPeriods(){
+  const set=new Set();
+  Object.values(ENGAGEMENT_DATA).forEach(d=>Object.keys(d.monthly||{}).forEach(pk=>set.add(pk)));
+  return[...set].sort((a,b)=>periodKeyToIndex(a)-periodKeyToIndex(b));
+}
+// 선정 시기가 늦어 특정 기간 이전에 참여할 수 없었던 기수는 시작 기간을 "YYYY-MM"으로 지정 (기수 단위 예외).
+// 그 외에는 본인의 참여 이력상 가장 이른 기록월을 시작 기간으로 사용 — 시스템 전체의 시작월이 아니라
+// "이 사람이 실제로 언제부터 기록에 나타났는지"를 기준으로 삼아, 나중에 합류한 사람이 시스템 초창기부터
+// 참여 가능했던 것처럼 잘못 계산되는 것을 방지함 (여러 해 누적되어도 매번 정확하게 유지됨)
+const BATCH_ENGAGEMENT_START={5:'2026-02',6:'2026-04'};
+
+function engagementStartPeriod(producerName,batch){
+  const d=ENGAGEMENT_DATA[producerName];
+  const ownPeriods=d?Object.keys(d.monthly||{}).sort((a,b)=>periodKeyToIndex(a)-periodKeyToIndex(b)):[];
+  const ownEarliest=ownPeriods.length?ownPeriods[0]:null;
+  const batchStart=BATCH_ENGAGEMENT_START[batch]||null;
+  if(batchStart&&ownEarliest) return periodKeyToIndex(batchStart)>=periodKeyToIndex(ownEarliest)?batchStart:ownEarliest;
+  if(batchStart) return batchStart;
+  if(ownEarliest) return ownEarliest;
+  const periods=allEngagementPeriods();
+  return periods.length?periods[0]:null;
 }
 
-// 현재까지 데이터가 존재하는 가장 최근 달 (전체 HMP 기준)
+// 현재까지 데이터가 존재하는 가장 최근 기간 (전체 HMP 기준)
 function getEngagementLatestMonth(){
-  let latestIdx=-1;
-  Object.values(ENGAGEMENT_DATA).forEach(d=>{
-    Object.keys(d.monthly||{}).forEach(m=>{
-      const idx=ENG_MONTH_ORDER.indexOf(m);
-      if(idx>latestIdx) latestIdx=idx;
-    });
-  });
-  return latestIdx>=0?ENG_MONTH_ORDER[latestIdx]:ENG_MONTH_ORDER[0];
+  const periods=allEngagementPeriods();
+  return periods.length?periods[periods.length-1]:null;
 }
 
-function getEngagementMaxTotal(){
-  return Math.max(...Object.values(ENGAGEMENT_DATA).map(d=>d.total||0),1);
-}
-
-// QC 가중치 계산 (0.4~1.6 범위)
-// 참여도 = 0.7×(총생산량/전체 최고 생산량) + 0.3×(참여 개월수/본인 기수의 "참여 가능 개월수")
-// 참여 가능 개월수는 기수별 시작월부터 현재 데이터 마지막 달까지로 계산 — 선정 시기가 늦은 기수(5·6기 등)가
-// 참여 이전 기간의 "미참여"로 불이익을 받지 않도록 함
-function getEngagementScore(producerName){
+// QC와 동일한 원리의 "최근 가중평균" — 최신 기간=가중치 1, 그 이전=decay, 그 이전=decay^2 ...
+// 참여 가능 기간(본인이 처음 기록된 달~전체 최신월) 전체를 분모로 삼아, 활동이 뜸해지면 자연히 점수가 낮아지고
+// 반대로 오래 꾸준히 참여한 사람은 최근 실적이 같다면 신규자와 동일한 점수를 받음 (재직 기간 자체가 유·불리하게 작용하지 않음)
+function computeEngagementRawScore(producerName){
   const d=ENGAGEMENT_DATA[producerName];
   if(!d) return null;
   const producer=PRODUCERS.find(p=>p.name===producerName);
-  const startMonth=engagementStartMonth(producer?producer.batch:null);
-  const startIdx=ENG_MONTH_ORDER.indexOf(startMonth);
-  const latestIdx=ENG_MONTH_ORDER.indexOf(getEngagementLatestMonth());
-  const eligibleMonths=Math.max(1,latestIdx-startIdx+1);
-  const monthsActive=Object.keys(d.monthly||{}).filter(m=>ENG_MONTH_ORDER.indexOf(m)>=startIdx).length;
-  const maxTotal=getEngagementMaxTotal();
-  const score=0.7*(d.total/maxTotal)+0.3*(monthsActive/eligibleMonths);
-  return Math.round(score*10000)/10000;
+  const startPeriod=engagementStartPeriod(producerName,producer?producer.batch:null);
+  const latestPeriod=getEngagementLatestMonth();
+  if(!startPeriod||!latestPeriod) return null;
+  const startIdx=periodKeyToIndex(startPeriod);
+  const latestIdx=periodKeyToIndex(latestPeriod);
+  const decay=settings.engagementDecay!=null?settings.engagementDecay:0.8;
+  let numerator=0,denominator=0;
+  for(let idx=startIdx;idx<=latestIdx;idx++){
+    const pk=indexToPeriodKey(idx);
+    const i=latestIdx-idx; // 최신 기간=0, 과거로 갈수록 커짐
+    const w=Math.pow(decay,i);
+    const qty=(d.monthly&&d.monthly[pk])||0;
+    numerator+=w*qty;
+    denominator+=w;
+  }
+  return denominator>0?numerator/denominator:0;
+}
+
+function getEngagementMaxRawScore(){
+  const scores=Object.keys(ENGAGEMENT_DATA).map(n=>computeEngagementRawScore(n)).filter(v=>v!==null);
+  return Math.max(...scores,1e-9);
+}
+
+// 참여도(0~1) = 본인의 최근 가중평균 생산량 ÷ 전체 HMP 중 최고 가중평균 생산량
+function getEngagementScore(producerName){
+  const raw=computeEngagementRawScore(producerName);
+  if(raw===null) return null;
+  const max=getEngagementMaxRawScore();
+  return Math.round((raw/max)*10000)/10000;
 }
 
 function calcEngagementWeight(producerName){
@@ -1132,9 +1200,12 @@ function saveSettings(){
   settings.qcUnknownMode=document.getElementById('qc-unknown-mode').value;
   settings.qcDecay=parseFloat(document.getElementById('qc-decay').value)||0.8;
   const ewEl=document.getElementById('engagement-weight');if(ewEl)settings.engagementWeight=ewEl.value;
+  const edEl=document.getElementById('engagement-decay');if(edEl)settings.engagementDecay=parseFloat(edEl.value)||0.8;
   localStorage.setItem('sdc_settings',JSON.stringify(settings));
   computeWeightedQC();
   updateQcSettingDesc();
+  if(document.getElementById('s-engagement')?.classList.contains('active')) renderEngagementTab();
+  if(document.getElementById('s-grade')?.classList.contains('active')) renderGradeTab();
 }
 function updateQcSettingDesc(){
   const mode=settings.qcWeightMode;
@@ -1475,7 +1546,10 @@ function renderQCTab(){
   if(lbl) lbl.textContent=history.length>1?`— ${history.length}${t('month_unit')} ${currentLang==='ko'?'누적 가중평균':'cumulative weighted avg'}`:`— ${history[0]?.label||t('default_label')}`;
 
   // ── 월별 이력 관리 카드 ──
-  const sorted=[...history].sort((a,b)=>new Date(b.uploadedAt)-new Date(a.uploadedAt));
+  const sorted=[...history].sort((a,b)=>{
+    if(a.periodKey&&b.periodKey) return b.periodKey.localeCompare(a.periodKey);
+    return new Date(b.uploadedAt)-new Date(a.uploadedAt);
+  });
   document.getElementById('qc-months-list').innerHTML=sorted.length
     ?`<div style="display:flex;flex-direction:column;gap:6px">`+
       sorted.map((m,idx)=>{
@@ -1494,7 +1568,7 @@ function renderQCTab(){
             <span style="font-size:12px;color:var(--accent);font-weight:500;min-width:36px">가중 ${Math.round(w*100)}%</span>
           </div>
           <span style="font-size:11px;color:var(--text3)">${uploadDate}</span>
-          <button class="btn btn-sm btn-d" onclick="removeQcMonth('${m.sheet}')" style="padding:2px 8px">삭제</button>
+          <button class="btn btn-sm btn-d" onclick="removeQcMonth('${m.periodKey||m.sheet}')" style="padding:2px 8px">삭제</button>
         </div>`;
       }).join('')+`</div>`
     :'<div class="empty">QC 이력 없음. 데이터 업데이트에서 엑셀 파일을 업로드하세요.</div>';
@@ -1528,9 +1602,9 @@ function renderQCTab(){
   renderQCDistChart();
 }
 
-window.removeQcMonth=function(sheet){
-  if(!confirm(t('confirm_delete_month',sheet))) return;
-  window.QC_HISTORY=(window.QC_HISTORY||[]).filter(h=>h.sheet!==sheet);
+window.removeQcMonth=function(periodKey){
+  if(!confirm(t('confirm_delete_month',periodKey))) return;
+  window.QC_HISTORY=(window.QC_HISTORY||[]).filter(h=>(h.periodKey||h.sheet)!==periodKey);
   localStorage.setItem('sdc_qc_history',JSON.stringify(window.QC_HISTORY));
   computeWeightedQC();
   // 기수 필터 리셋
@@ -1564,7 +1638,10 @@ function renderQCList(){
     // 월별 상세 행
     const monthRows=d.months.map((m,idx)=>{
       const decay=settings.qcDecay||0.8;
-      const sortedHistory=[...history].sort((a,b)=>new Date(b.uploadedAt)-new Date(a.uploadedAt));
+      const sortedHistory=[...history].sort((a,b)=>{
+        if(a.periodKey&&b.periodKey) return b.periodKey.localeCompare(a.periodKey);
+        return new Date(b.uploadedAt)-new Date(a.uploadedAt);
+      });
       const hIdx=sortedHistory.findIndex(h=>h.label===m.label||h.sheet===m.label);
       const w=hIdx>=0?Math.pow(decay,hIdx):m.weight/100;
       return`<div style="display:grid;grid-template-columns:80px 60px 1fr 50px;gap:6px;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px solid var(--border)">
@@ -1652,6 +1729,14 @@ function filterEngBatch(b,el){
   renderEngagementList();
 }
 
+function formatPeriodLabel(pk,showYear){
+  const [y,m]=pk.split('-').map(Number);
+  const mNum=parseInt(m,10);
+  if(currentLang==='ko') return showYear?`${String(y).slice(2)}.${mNum}월`:`${mNum}월`;
+  const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return showYear?`${MN[mNum-1]} '${String(y).slice(2)}`:MN[mNum-1];
+}
+
 function renderEngagementList(){
   const sort=document.getElementById('eng-sort')?.value||'eng-hi';
   let list=PRODUCERS.filter(p=>activeEngBatch===null||p.batch===activeEngBatch)
@@ -1664,22 +1749,22 @@ function renderEngagementList(){
     if(sort==='batch') return (a.batch-b.batch)||a.name.localeCompare(b.name);
     return 0;
   });
-  const monthsOrder=['January','February','March','April','May','June'];
-  const monthLabels=currentLang==='ko'
-    ?{January:'1월',February:'2월',March:'3월',April:'4월',May:'5월',June:'6월'}
-    :{January:'Jan',February:'Feb',March:'Mar',April:'Apr',May:'May',June:'Jun'};
-  // 전체 HMP 공통 기준: 모든 사람·모든 달 중 최댓값을 100%로 사용 (사람 간 비교 가능)
-  const globalMaxQty=Math.max(...Object.values(ENGAGEMENT_DATA).flatMap(d=>monthsOrder.map(m=>d.monthly[m]||0)),1);
+  // 최근 최대 6개 기간(월)을 롤링 윈도우로 표시 — 연도 경계를 넘어가도 자연스럽게 이어짐
+  const allPeriods=allEngagementPeriods();
+  const recentPeriods=allPeriods.slice(-6);
+  const spansMultipleYears=new Set(recentPeriods.map(pk=>pk.split('-')[0])).size>1;
+  // 전체 HMP 공통 기준: 표시 중인 기간 범위 내 모든 사람·모든 달 중 최댓값을 100%로 사용 (사람 간 비교 가능)
+  const globalMaxQty=Math.max(...Object.values(ENGAGEMENT_DATA).flatMap(d=>recentPeriods.map(pk=>(d.monthly||{})[pk]||0)),1);
   document.getElementById('eng-list').innerHTML=list.length?list.map(p=>{
     const eng=p.eng;
     const pct=p.score!==null?Math.round(p.score*100):null;
     const barColor=pct===null?'#9E9E9E':pct>=60?'#2E7D32':pct>=30?'#F57F17':'#C62828';
-    const monthBars=eng?monthsOrder.map(m=>{
-      const q=eng.monthly[m]||0;
+    const monthBars=eng?recentPeriods.map(pk=>{
+      const q=(eng.monthly||{})[pk]||0;
       return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
         <span style="font-size:9px;color:var(--text3)">${q||''}</span>
         <div style="width:100%;background:${q?'var(--accent)':'var(--border)'};opacity:${q?.85:.3};height:${Math.max(3,Math.round(q/globalMaxQty*36))}px;border-radius:2px"></div>
-        <span style="font-size:9px;color:var(--text3)">${monthLabels[m]}</span>
+        <span style="font-size:9px;color:var(--text3)">${formatPeriodLabel(pk,spansMultipleYears)}</span>
       </div>`;
     }).join(''):'';
     return`<div class="qc-card">
@@ -1690,7 +1775,7 @@ function renderEngagementList(){
           <div class="qc-bar-bg"><div class="qc-bar-fill" style="width:${pct??0}%;background:${barColor}"></div></div>
           <span class="qc-rate-badge" style="color:${barColor}">${pct!==null?pct+'%':'N/A'}</span>
         </div>
-        ${eng?`<span style="font-size:11px;color:var(--text2)">${eng.months}${t('month_unit')} · ${currentLang==='ko'?'총':'total'} ${eng.total}${currentLang==='ko'?'개':'pcs'}</span>`:`<span style="font-size:11px;color:var(--text3)" data-i18n="eng_no_history">참여 이력 없음</span>`}
+        ${eng?`<span style="font-size:11px;color:var(--text2)">${eng.months}${t('month_unit')} · ${currentLang==='ko'?'누적':'cumulative'} ${eng.total.toLocaleString()}</span>`:`<span style="font-size:11px;color:var(--text3)" data-i18n="eng_no_history">참여 이력 없음</span>`}
       </div>
       ${eng?`<div style="display:flex;gap:4px;padding:4px 4px 0">${monthBars}</div>`:''}
     </div>`;
@@ -1792,8 +1877,7 @@ function toggleGradeDetail(name){
 }
 
 function getGlobalMaxMonthlyQty(){
-  const monthsOrder=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  return Math.max(...Object.values(ENGAGEMENT_DATA).flatMap(d=>monthsOrder.map(m=>d.monthly[m]||0)),1);
+  return Math.max(...Object.values(ENGAGEMENT_DATA).flatMap(d=>Object.values(d.monthly||{})),1);
 }
 
 // 개인 리포트: 등급 근거 + QC 월별 이력 + 참여도 월별 생산량 + 생산 가능 품목
@@ -1816,29 +1900,32 @@ function buildGradeDetailHTML(p){
     </div>`).join('')}`
     :`<div style="font-size:12px;color:var(--text3);padding:6px 0">${t('eng_no_history')==='참여 이력 없음'?'QC 이력 없음':'No QC history'}</div>`;
 
-  const monthsOrder=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const monthLabels=currentLang==='ko'
-    ?{January:'1월',February:'2월',March:'3월',April:'4월',May:'5월',June:'6월',July:'7월',August:'8월',September:'9월',October:'10월',November:'11월',December:'12월'}
-    :{January:'Jan',February:'Feb',March:'Mar',April:'Apr',May:'May',June:'Jun',July:'Jul',August:'Aug',September:'Sep',October:'Oct',November:'Nov',December:'Dec'};
   const globalMax=getGlobalMaxMonthlyQty();
-  const startMonth=engagementStartMonth(producer?producer.batch:null);
-  const startIdx=ENG_MONTH_ORDER.indexOf(startMonth);
-  const latestIdx=ENG_MONTH_ORDER.indexOf(getEngagementLatestMonth());
-  const visibleMonths=monthsOrder.filter((m,i)=>i<=latestIdx);
-  const engSection=engData?`
-    <div style="display:flex;gap:4px;padding:4px 4px 0">
-      ${visibleMonths.map((m,i)=>{
-        const q=engData.monthly[m]||0;
-        const beforeStart=i<startIdx;
-        return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px" title="${beforeStart?(currentLang==='ko'?'참여 시작 전':'Before joining'):''}">
-          <span style="font-size:9px;color:var(--text3)">${beforeStart?'—':(q||'')}</span>
-          <div style="width:100%;background:${beforeStart?'repeating-linear-gradient(45deg,var(--border),var(--border) 2px,transparent 2px,transparent 4px)':(q?'var(--accent)':'var(--border)')};opacity:${beforeStart?0.5:(q?.85:.3)};height:${beforeStart?10:Math.max(3,Math.round(q/globalMax*36))}px;border-radius:2px"></div>
-          <span style="font-size:9px;color:var(--text3)">${monthLabels[m]}</span>
-        </div>`;
-      }).join('')}
-    </div>
-    <div style="font-size:11px;color:var(--text2);margin-top:4px">${currentLang==='ko'?'총':'Total'} ${engData.total}${currentLang==='ko'?'개':'pcs'} · ${engData.months}${t('month_unit')} ${currentLang==='ko'?'활동':'active'}${startIdx>0?` · ${currentLang==='ko'?`참여 시작: ${monthLabels[startMonth]}`:`Joined: ${monthLabels[startMonth]}`}`:''}</div>`
-    :`<div style="font-size:12px;color:var(--text3);padding:6px 0">${t('eng_no_history')}</div>`;
+  const startPeriod=engagementStartPeriod(p.name,producer?producer.batch:null);
+  const latestPeriod=getEngagementLatestMonth();
+  let engSection=`<div style="font-size:12px;color:var(--text3);padding:6px 0">${t('eng_no_history')}</div>`;
+  if(engData&&startPeriod&&latestPeriod){
+    const latestIdx=periodKeyToIndex(latestPeriod);
+    const startIdx=periodKeyToIndex(startPeriod);
+    const WINDOW=12; // 최근 최대 12개월만 표시 (그 이전 이력은 총계에는 반영되지만 그래프엔 생략)
+    const windowStartIdx=latestIdx-WINDOW+1;
+    const spansMultipleYears=Math.floor((windowStartIdx-1)/12)!==Math.floor((latestIdx-1)/12);
+    const bars=[];
+    for(let idx=windowStartIdx;idx<=latestIdx;idx++){
+      const pk=indexToPeriodKey(idx);
+      const q=(engData.monthly||{})[pk]||0;
+      const beforeStart=idx<startIdx;
+      bars.push(`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px" title="${beforeStart?(currentLang==='ko'?'참여 시작 전':'Before joining'):''}">
+        <span style="font-size:9px;color:var(--text3)">${beforeStart?'—':(q||'')}</span>
+        <div style="width:100%;background:${beforeStart?'repeating-linear-gradient(45deg,var(--border),var(--border) 2px,transparent 2px,transparent 4px)':(q?'var(--accent)':'var(--border)')};opacity:${beforeStart?0.5:(q?.85:.3)};height:${beforeStart?10:Math.max(3,Math.round(q/globalMax*36))}px;border-radius:2px"></div>
+        <span style="font-size:9px;color:var(--text3)">${formatPeriodLabel(pk,spansMultipleYears)}</span>
+      </div>`);
+    }
+    const joinedNote=startIdx>windowStartIdx?` · ${currentLang==='ko'?`참여 시작: ${formatPeriodLabel(startPeriod,true)}`:`Joined: ${formatPeriodLabel(startPeriod,true)}`}`:'';
+    engSection=`
+    <div style="display:flex;gap:4px;padding:4px 4px 0">${bars.join('')}</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:4px">${currentLang==='ko'?'누적':'Total'} ${engData.total.toLocaleString()} · ${engData.months}${t('month_unit')} ${currentLang==='ko'?'활동':'active'}${joinedNote}</div>`;
+  }
 
   const capableSection=producer&&producer.capable.length
     ?`<div style="display:flex;flex-wrap:wrap;gap:4px">${producer.capable.map(c=>`<span class="ptag">${c}</span>`).join('')}</div>`
@@ -2138,8 +2225,51 @@ function parseLaborExcel(wb,resultEl){
 
 // ── QC 파일 파싱 ──
 // 구조: Y/M/Product name/Submitted Qty/QC pass QTY/HMP/NOTE
+const MONTH_NUM_MAP={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
+
+// 제품명 표기 차이(공백·괄호 등)를 무시하고 노동비 단가를 찾기 위한 정규화 키
+function normalizeProductKey(s){
+  return String(s).toLowerCase().replace(/[\s_]+/g,'').replace(/[()]/g,'');
+}
+function findLaborFee(productName){
+  const target=normalizeProductKey(productName);
+  if(!target) return null;
+  const exact=Object.keys(LABOR_FEE).find(k=>normalizeProductKey(k)===target);
+  if(exact) return LABOR_FEE[exact];
+  // 정확히 안 맞으면 부분 포함 관계로도 한 번 더 시도 (예: "Shoppers Bag(Ecobag) v3" ~ "Shoppers bag v3")
+  const partial=Object.keys(LABOR_FEE).find(k=>{
+    const nk=normalizeProductKey(k);
+    return nk.includes(target)||target.includes(nk);
+  });
+  return partial?LABOR_FEE[partial]:null;
+}
+
+// QC로 제출된 품목별 수량 × 노동비 단가 = "생산 가치"를 계산해 참여도 데이터에 자동 반영
+// (개수 기준으로 참여도를 매기면 단가 낮고 빨리 만드는 품목만 선호하게 되는 왜곡을 방지하기 위함)
+function deriveEngagementFromQcMonth(hmpStats,periodKey){
+  const unmatchedNames=[],unmatchedProducts=new Set();
+  Object.entries(hmpStats).forEach(([qcName,stat])=>{
+    const producerName=matchQcNameToProducer(qcName);
+    if(!producerName){unmatchedNames.push(qcName);return;}
+    let value=0;
+    (stat.products||[]).forEach(p=>{
+      const fee=findLaborFee(p.product);
+      if(fee==null){unmatchedProducts.add(p.product);return;}
+      value+=(p.submitted||0)*fee;
+    });
+    if(!ENGAGEMENT_DATA[producerName]) ENGAGEMENT_DATA[producerName]={monthly:{},total:0,months:0};
+    ENGAGEMENT_DATA[producerName].monthly[periodKey]=Math.round(value);
+    const monthlyVals=Object.values(ENGAGEMENT_DATA[producerName].monthly);
+    ENGAGEMENT_DATA[producerName].total=monthlyVals.reduce((s,v)=>s+v,0);
+    ENGAGEMENT_DATA[producerName].months=monthlyVals.length;
+  });
+  localStorage.setItem('sdc_engagement_data',JSON.stringify(ENGAGEMENT_DATA));
+  return{unmatchedNames,unmatchedProducts:[...unmatchedProducts]};
+}
+
 function parseQCExcel(wb,resultEl){
   const targetSheet=document.getElementById('qc-sheet-name').value.trim();
+  const yearInput=parseInt(document.getElementById('qc-year')?.value)||new Date().getFullYear();
   let wsName=null;
   if(targetSheet){
     wsName=wb.SheetNames.find(n=>n.toLowerCase()===targetSheet.toLowerCase())||
@@ -2176,10 +2306,14 @@ function parseQCExcel(wb,resultEl){
   const count=Object.keys(hmpStats).length;
   if(!count){resultEl.innerHTML='<div class="upload-result-err">❌ 파싱된 QC 데이터가 없습니다.</div>';return;}
 
-  // 같은 시트명이 이미 있으면 교체, 없으면 추가
+  // 연도+월로 고유 시기(periodKey) 구성 — 같은 연도·같은 월이면 교체, 다른 연도면 별도 이력으로 누적
+  const monthNum=MONTH_NUM_MAP[wsName.toLowerCase()]||null;
+  const periodKey=monthNum?`${yearInput}-${String(monthNum).padStart(2,'0')}`:`${yearInput}-${wsName}`;
+  const label=monthNum?`${yearInput}년 ${monthNum}월`:`${yearInput}년 ${wsName}`;
+
   const history=window.QC_HISTORY||[];
-  const existIdx=history.findIndex(h=>h.sheet.toLowerCase()===wsName.toLowerCase());
-  const entry={sheet:wsName,label:wsName,uploadedAt:new Date().toISOString(),data:hmpStats};
+  const existIdx=history.findIndex(h=>(h.periodKey||`${h.year||''}-${h.sheet}`)===periodKey);
+  const entry={sheet:wsName,year:yearInput,periodKey,label,uploadedAt:new Date().toISOString(),data:hmpStats};
   if(existIdx>=0){history[existIdx]=entry;}
   else{history.push(entry);}
   window.QC_HISTORY=history;
@@ -2190,13 +2324,22 @@ function parseQCExcel(wb,resultEl){
   // 가중평균 재계산
   computeWeightedQC();
 
+  // 품목별 제출수량 × 노동비 단가로 참여도(생산 가치)도 함께 자동 반영
+  const engResult=deriveEngagementFromQcMonth(hmpStats,periodKey);
+
   if(document.getElementById('s-qc').classList.contains('active')) renderQCTab();
+  if(document.getElementById('s-engagement')?.classList.contains('active')) renderEngagementTab();
   if(document.getElementById('s-grade')?.classList.contains('active')) renderGradeTab();
+  if(document.getElementById('s-hmp')?.classList.contains('active')) renderHMPList();
 
   const monthCount=history.length;
   const avg=Math.round(Object.values(hmpStats).filter(d=>d.submitted>0).reduce((s,d)=>s+d.rate,0)/Object.values(hmpStats).filter(d=>d.submitted>0).length);
-  resultEl.innerHTML=`<div class="upload-result-ok">${t('qc_updated',wsName,count,monthCount)}<br>
-    <span style="font-size:12px">이번 월 평균 통과율: ${avg}% · 사용 가능한 시트: ${wb.SheetNames.join(', ')}</span></div>`;
+  resultEl.innerHTML=`<div class="upload-result-ok">${t('qc_updated',label,count,monthCount)}<br>
+    <span style="font-size:12px">이번 월 평균 통과율: ${avg}% · 사용 가능한 시트: ${wb.SheetNames.join(', ')}</span><br>
+    <span style="font-size:12px">✅ 참여도(생산가치)도 이 달 품목별 제출수량 × 노동비 단가로 자동 반영됨</span>
+    ${engResult.unmatchedNames.length?`<br><span style="font-size:12px;color:var(--red)">⚠ HMP 명단과 이름 매칭 실패 ${engResult.unmatchedNames.length}명 (참여도 미반영): ${engResult.unmatchedNames.join(', ')}</span>`:''}
+    ${engResult.unmatchedProducts.length?`<br><span style="font-size:12px;color:var(--red)">⚠ 노동비 목록과 매칭 안 된 품목 ${engResult.unmatchedProducts.length}건(해당 품목 수량은 0으로 계산됨): ${engResult.unmatchedProducts.join(', ')}</span>`:''}
+    </div>`;
 }
 
 // ── 참여도 파일 파싱 ──
@@ -2233,6 +2376,7 @@ function matchEngagementNames(rawNames){
 
 function parseEngagementExcel(wb,resultEl){
   try{
+    const yearInput=parseInt(document.getElementById('engagement-year')?.value)||new Date().getFullYear();
     const wsName=wb.SheetNames[0];
     const ws=wb.Sheets[wsName];
     const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
@@ -2245,8 +2389,12 @@ function parseEngagementExcel(wb,resultEl){
     if(headerIdx<0){resultEl.innerHTML='<div class="upload-result-err">❌ 월 이름(January 등) 헤더 행을 찾을 수 없습니다.</div>';return;}
 
     const header=rows[headerIdx];
-    const monthCols={};
-    header.forEach((h,idx)=>{const hs=String(h||'').trim();if(ENG_MONTH_NAMES.includes(hs))monthCols[hs]=idx;});
+    const monthCols={}; // {"2026-01": colIdx, ...}
+    header.forEach((h,idx)=>{
+      const hs=String(h||'').trim();
+      const monthNum=MONTH_NUM_MAP[hs.toLowerCase()];
+      if(monthNum) monthCols[`${yearInput}-${String(monthNum).padStart(2,'0')}`]=idx;
+    });
     if(!Object.keys(monthCols).length){resultEl.innerHTML='<div class="upload-result-err">❌ 월별 컬럼을 찾을 수 없습니다.</div>';return;}
 
     // 데이터 행 파싱 (반드시 "(기수)" 접두사가 있는 행만 — Monthly Total 등 합계 행 제외)
@@ -2258,43 +2406,39 @@ function parseEngagementExcel(wb,resultEl){
       if(!cell||!/^\(\d+\)/.test(cell)) continue;
       const name=cell.replace(/^\(\d+\)\s*/,'').replace(/★/g,'').trim();
       if(!name) continue;
-      const monthly={};let total=0;
-      Object.entries(monthCols).forEach(([m,col])=>{
+      const monthly={};
+      Object.entries(monthCols).forEach(([pk,col])=>{
         const v=row[col];
         if(v!==null&&v!==undefined&&v!==''){
           const num=Number(v);
-          if(!isNaN(num)&&num>0){monthly[m]=num;total+=num;}
+          if(!isNaN(num)&&num>0){monthly[pk]=num;}
         }
       });
-      if(Object.keys(monthly).length) raw[name]={monthly,total};
+      if(Object.keys(monthly).length) raw[name]={monthly};
     }
 
     const rawCount=Object.keys(raw).length;
     if(!rawCount){resultEl.innerHTML='<div class="upload-result-err">❌ 참여 실적이 있는 HMP를 찾지 못했습니다.</div>';return;}
 
-    // 데이터가 존재하는 전체 개월 수 (참고용 — 실제 참여도 점수는 기수별 참여 시작월을 반영해 조회 시점에 동적으로 계산됨)
-    const monthsSeen=new Set();
-    Object.values(raw).forEach(d=>Object.keys(d.monthly).forEach(m=>monthsSeen.add(m)));
-    const totalMonthsSoFar=monthsSeen.size||1;
-
-    // 이름 1:1 매칭 후 최종 ENGAGEMENT_DATA 구성 (total/months/monthly만 저장 — 참여도 점수는 getEngagementScore()에서 매번 계산)
+    // 이름 1:1 매칭 후, 기존 이력에 이번 연도의 월 데이터만 병합 (다른 연도·다른 사람의 기존 이력은 그대로 유지)
     const nameMap=matchEngagementNames(Object.keys(raw));
     const unmatched=Object.keys(raw).filter(n=>!nameMap[n]);
-    const result={};
     Object.entries(raw).forEach(([rawName,d])=>{
       const key=nameMap[rawName]||rawName;
-      const monthsCount=Object.keys(d.monthly).length;
-      result[key]={total:d.total,months:monthsCount,monthly:d.monthly};
+      if(!ENGAGEMENT_DATA[key]) ENGAGEMENT_DATA[key]={monthly:{},total:0,months:0};
+      ENGAGEMENT_DATA[key].monthly={...ENGAGEMENT_DATA[key].monthly,...d.monthly};
+      const monthlyVals=Object.values(ENGAGEMENT_DATA[key].monthly);
+      ENGAGEMENT_DATA[key].total=monthlyVals.reduce((s,v)=>s+v,0);
+      ENGAGEMENT_DATA[key].months=monthlyVals.length;
     });
 
-    ENGAGEMENT_DATA=result;
     localStorage.setItem('sdc_engagement_data',JSON.stringify(ENGAGEMENT_DATA));
 
     if(document.getElementById('s-engagement')?.classList.contains('active')) renderEngagementTab();
     if(document.getElementById('s-grade')?.classList.contains('active')) renderGradeTab();
     if(document.getElementById('s-hmp')?.classList.contains('active')) renderHMPList();
 
-    resultEl.innerHTML=`<div class="upload-result-ok">✅ 참여 데이터 ${rawCount}명 업로드 완료 — 누적 ${totalMonthsSoFar}개월 반영
+    resultEl.innerHTML=`<div class="upload-result-ok">✅ ${yearInput}년 참여 데이터 ${rawCount}명 반영 완료 (다른 연도 이력은 유지됨)
       ${unmatched.length?`<br><span style="font-size:12px;color:var(--red)">⚠ HMP 명단과 이름 매칭 실패 ${unmatched.length}명 (신규 HMP이거나 이름 표기가 다를 수 있음): ${unmatched.join(', ')}</span>`:''}</div>`;
   }catch(err){
     resultEl.innerHTML=`<div class="upload-result-err">❌ 파일을 읽을 수 없습니다: ${err.message||err}</div>`;
@@ -2405,6 +2549,11 @@ document.getElementById('qc-unknown-mode').value=settings.qcUnknownMode;
 document.getElementById('qc-decay').value=settings.qcDecay||0.8;
 const ewEl2=document.getElementById('engagement-weight');if(ewEl2)ewEl2.value=settings.engagementWeight||'soft';
 const grEl2=document.getElementById('grade-ratio');if(grEl2)grEl2.value=String(settings.gradeQcRatio!=null?settings.gradeQcRatio:0.6);
+const edEl2=document.getElementById('engagement-decay');if(edEl2)edEl2.value=settings.engagementDecay!=null?settings.engagementDecay:0.8;
+// 연도 입력란 기본값 = 오늘 날짜 기준 연도
+const curYear=new Date().getFullYear();
+const qcYearEl=document.getElementById('qc-year');if(qcYearEl)qcYearEl.value=curYear;
+const engYearEl=document.getElementById('engagement-year');if(engYearEl)engYearEl.value=curYear;
 </script>
 </body>
 </html>
