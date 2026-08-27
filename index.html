@@ -380,7 +380,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:14px">
       <span class="ct" style="margin:0" data-i18n="eng_by_hmp_title">📈 HMP별 참여 현황</span>
-      <span style="font-size:12px;color:var(--text2)" data-i18n="eng_period_label">(2026년 1월~6월 기준)</span>
+      <span id="eng-period-label" style="font-size:12px;color:var(--text2)" data-i18n="eng_period_label">(2026년 1월~6월 기준)</span>
     </div>
     <div style="font-size:11px;color:var(--text3);margin:-8px 0 12px" data-i18n="eng_batch_start_note">※ 5기는 2월, 6기는 4월부터 참여 시작 — 참여 이전 기간은 참여도 계산(참여 개월수 비율)에서 제외됩니다.</div>
     <div class="smg" id="eng-summary-grid"></div>
@@ -1784,6 +1784,21 @@ function renderQCDistChart(){
 // ── 참여 현황 ──
 let activeEngBatch=null;
 function renderEngagementTab(){
+  const periods=allEngagementPeriods();
+  if(periods.length){
+    const [fy,fm]=periods[0].split('-');
+    const [ly,lm]=periods[periods.length-1].split('-');
+    const sameYear=fy===ly;
+    let lbl;
+    if(periods.length===1){
+      lbl=currentLang==='ko'?`(${fy}년 ${parseInt(fm)}월 기준)`:`(as of ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(fm)-1]} ${fy})`;
+    }else if(sameYear){
+      lbl=currentLang==='ko'?`(${fy}년 ${parseInt(fm)}월~${parseInt(lm)}월 기준)`:`(${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(fm)-1]}–${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(lm)-1]} ${fy})`;
+    }else{
+      lbl=currentLang==='ko'?`(${fy}년 ${parseInt(fm)}월~${ly}년 ${parseInt(lm)}월 기준)`:`(${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(fm)-1]} ${fy}–${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(lm)-1]} ${ly})`;
+    }
+    const el=document.getElementById('eng-period-label');if(el)el.textContent=lbl;
+  }
   const entries=PRODUCERS.map(p=>({name:p.name,batch:p.batch,eng:ENGAGEMENT_DATA[p.name]||null,score:getEngagementScore(p.name)}));
   const withData=entries.filter(e=>e.eng);
   const scores=withData.map(e=>e.score);
