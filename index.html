@@ -366,6 +366,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
       <span class="ct" style="margin:0" data-i18n="eng_by_hmp_title">📈 HMP별 참여 현황</span>
       <span style="font-size:12px;color:var(--text2)" data-i18n="eng_period_label">(2026년 1월~6월 기준)</span>
     </div>
+    <div style="font-size:11px;color:var(--text3);margin:-8px 0 12px" data-i18n="eng_batch_start_note">※ 5기는 2월, 6기는 4월부터 참여 시작 — 참여 이전 기간은 참여도 계산(참여 개월수 비율)에서 제외됩니다.</div>
     <div class="smg" id="eng-summary-grid"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px">
       <div class="frow" id="eng-batch-filter" style="margin:0"><span style="font-size:12px;color:var(--text2);font-weight:500" data-i18n="batch_colon">기수:</span></div>
@@ -730,6 +731,7 @@ const I18N={
     eng_none:'반영 안 함',eng_soft:'약하게 (±15%)',eng_medium:'중간 (±30%)',eng_strong:'강하게 (±50%)',
     tab_engagement:'📈 참여 현황',
     eng_by_hmp_title:'📈 HMP별 참여 현황', eng_period_label:'(2026년 1월~6월 기준)',
+    eng_batch_start_note:'※ 5기는 2월, 6기는 4월부터 참여 시작 — 참여 이전 기간은 참여도 계산(참여 개월수 비율)에서 제외됩니다.',
     eng_sort_hi:'참여도 높은순', eng_sort_lo:'참여도 낮은순', eng_sort_qty:'총 생산량 많은순', eng_sort_months:'활동 개월수 많은순',
     eng_dist_title:'참여도 분포',
     eng_has_data:'참여 데이터 보유 HMP', eng_avg:'전체 평균 참여도',
@@ -839,6 +841,7 @@ const I18N={
     eng_none:'None',eng_soft:'Soft (±15%)',eng_medium:'Medium (±30%)',eng_strong:'Strong (±50%)',
     tab_engagement:'📈 Engagement',
     eng_by_hmp_title:'📈 Engagement by HMP', eng_period_label:'(Jan–Jun 2026)',
+    eng_batch_start_note:'※ Batch 5 started Feb, Batch 6 started Apr — months before their start are excluded from the engagement calculation.',
     eng_sort_hi:'Highest engagement', eng_sort_lo:'Lowest engagement', eng_sort_qty:'Highest total output', eng_sort_months:'Most active months',
     eng_dist_title:'Engagement Distribution',
     eng_has_data:'HMPs with engagement data', eng_avg:'Overall avg. engagement',
@@ -969,11 +972,47 @@ function getQcMonthDetail(producerName){
   return window.QC_WEIGHTED?.[qcEntry[0]]?.months||[];
 }
 
+// ── 참여도 동적 계산 (기수별 참여 시작월 반영) ──
+const ENG_MONTH_ORDER=['January','February','March','April','May','June','July','August','September','October','November','December'];
+// 선정 시기가 늦어 연초에 참여할 수 없었던 기수는 시작월을 지정. 지정 없으면 전체 데이터 시작월(보통 1월)부터 계산.
+const BATCH_ENGAGEMENT_START={5:'February',6:'April'};
+
+function engagementStartMonth(batch){
+  return BATCH_ENGAGEMENT_START[batch]||ENG_MONTH_ORDER[0];
+}
+
+// 현재까지 데이터가 존재하는 가장 최근 달 (전체 HMP 기준)
+function getEngagementLatestMonth(){
+  let latestIdx=-1;
+  Object.values(ENGAGEMENT_DATA).forEach(d=>{
+    Object.keys(d.monthly||{}).forEach(m=>{
+      const idx=ENG_MONTH_ORDER.indexOf(m);
+      if(idx>latestIdx) latestIdx=idx;
+    });
+  });
+  return latestIdx>=0?ENG_MONTH_ORDER[latestIdx]:ENG_MONTH_ORDER[0];
+}
+
+function getEngagementMaxTotal(){
+  return Math.max(...Object.values(ENGAGEMENT_DATA).map(d=>d.total||0),1);
+}
+
 // QC 가중치 계산 (0.4~1.6 범위)
+// 참여도 = 0.7×(총생산량/전체 최고 생산량) + 0.3×(참여 개월수/본인 기수의 "참여 가능 개월수")
+// 참여 가능 개월수는 기수별 시작월부터 현재 데이터 마지막 달까지로 계산 — 선정 시기가 늦은 기수(5·6기 등)가
+// 참여 이전 기간의 "미참여"로 불이익을 받지 않도록 함
 function getEngagementScore(producerName){
-  // ENGAGEMENT_DATA는 PRODUCERS 이름 기준으로 매핑됨
   const d=ENGAGEMENT_DATA[producerName];
-  return d?d.engagement:null;
+  if(!d) return null;
+  const producer=PRODUCERS.find(p=>p.name===producerName);
+  const startMonth=engagementStartMonth(producer?producer.batch:null);
+  const startIdx=ENG_MONTH_ORDER.indexOf(startMonth);
+  const latestIdx=ENG_MONTH_ORDER.indexOf(getEngagementLatestMonth());
+  const eligibleMonths=Math.max(1,latestIdx-startIdx+1);
+  const monthsActive=Object.keys(d.monthly||{}).filter(m=>ENG_MONTH_ORDER.indexOf(m)>=startIdx).length;
+  const maxTotal=getEngagementMaxTotal();
+  const score=0.7*(d.total/maxTotal)+0.3*(monthsActive/eligibleMonths);
+  return Math.round(score*10000)/10000;
 }
 
 function calcEngagementWeight(producerName){
@@ -1538,9 +1577,9 @@ function renderQCDistChart(){
 // ── 참여 현황 ──
 let activeEngBatch=null;
 function renderEngagementTab(){
-  const entries=PRODUCERS.map(p=>({name:p.name,batch:p.batch,eng:ENGAGEMENT_DATA[p.name]||null}));
+  const entries=PRODUCERS.map(p=>({name:p.name,batch:p.batch,eng:ENGAGEMENT_DATA[p.name]||null,score:getEngagementScore(p.name)}));
   const withData=entries.filter(e=>e.eng);
-  const scores=withData.map(e=>e.eng.engagement);
+  const scores=withData.map(e=>e.score);
   const avg=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length*100):0;
   const hi=scores.filter(s=>s>=0.6).length;
   const mid=scores.filter(s=>s>=0.3&&s<0.6).length;
@@ -1570,10 +1609,10 @@ function filterEngBatch(b,el){
 function renderEngagementList(){
   const sort=document.getElementById('eng-sort')?.value||'eng-hi';
   let list=PRODUCERS.filter(p=>activeEngBatch===null||p.batch===activeEngBatch)
-    .map(p=>({name:p.name,batch:p.batch,eng:ENGAGEMENT_DATA[p.name]||null}));
+    .map(p=>({name:p.name,batch:p.batch,eng:ENGAGEMENT_DATA[p.name]||null,score:getEngagementScore(p.name)}));
   list.sort((a,b)=>{
-    if(sort==='eng-hi') return (b.eng?b.eng.engagement:-1)-(a.eng?a.eng.engagement:-1);
-    if(sort==='eng-lo') return (a.eng?a.eng.engagement:2)-(b.eng?b.eng.engagement:2);
+    if(sort==='eng-hi') return (b.score??-1)-(a.score??-1);
+    if(sort==='eng-lo') return (a.score??2)-(b.score??2);
     if(sort==='qty') return (b.eng?b.eng.total:0)-(a.eng?a.eng.total:0);
     if(sort==='months') return (b.eng?b.eng.months:0)-(a.eng?a.eng.months:0);
     if(sort==='batch') return (a.batch-b.batch)||a.name.localeCompare(b.name);
@@ -1587,7 +1626,7 @@ function renderEngagementList(){
   const globalMaxQty=Math.max(...Object.values(ENGAGEMENT_DATA).flatMap(d=>monthsOrder.map(m=>d.monthly[m]||0)),1);
   document.getElementById('eng-list').innerHTML=list.length?list.map(p=>{
     const eng=p.eng;
-    const pct=eng?Math.round(eng.engagement*100):null;
+    const pct=p.score!==null?Math.round(p.score*100):null;
     const barColor=pct===null?'#9E9E9E':pct>=60?'#2E7D32':pct>=30?'#F57F17':'#C62828';
     const monthBars=eng?monthsOrder.map(m=>{
       const q=eng.monthly[m]||0;
@@ -1613,7 +1652,7 @@ function renderEngagementList(){
 }
 
 function renderEngagementDistChart(){
-  const scores=PRODUCERS.map(p=>ENGAGEMENT_DATA[p.name]?ENGAGEMENT_DATA[p.name].engagement:null).filter(v=>v!==null);
+  const scores=PRODUCERS.map(p=>ENGAGEMENT_DATA[p.name]?getEngagementScore(p.name):null).filter(v=>v!==null);
   const buckets=[{label:'0~10%',min:0,max:.1,col:'#C62828'},{label:'10~30%',min:.1,max:.3,col:'#E53935'},{label:'30~50%',min:.3,max:.5,col:'#FB8C00'},{label:'50~70%',min:.5,max:.7,col:'#43A047'},{label:'70%+',min:.7,max:1.01,col:'#1B5E20'}];
   const counts=buckets.map(b=>({...b,count:scores.filter(s=>s>=b.min&&s<b.max).length}));
   const maxC=Math.max(...counts.map(b=>b.count),1);
@@ -1736,18 +1775,23 @@ function buildGradeDetailHTML(p){
     ?{January:'1월',February:'2월',March:'3월',April:'4월',May:'5월',June:'6월',July:'7월',August:'8월',September:'9월',October:'10월',November:'11월',December:'12월'}
     :{January:'Jan',February:'Feb',March:'Mar',April:'Apr',May:'May',June:'Jun',July:'Jul',August:'Aug',September:'Sep',October:'Oct',November:'Nov',December:'Dec'};
   const globalMax=getGlobalMaxMonthlyQty();
+  const startMonth=engagementStartMonth(producer?producer.batch:null);
+  const startIdx=ENG_MONTH_ORDER.indexOf(startMonth);
+  const latestIdx=ENG_MONTH_ORDER.indexOf(getEngagementLatestMonth());
+  const visibleMonths=monthsOrder.filter((m,i)=>i<=latestIdx);
   const engSection=engData?`
     <div style="display:flex;gap:4px;padding:4px 4px 0">
-      ${monthsOrder.filter(m=>engData.monthly[m]!=null||true).map(m=>{
+      ${visibleMonths.map((m,i)=>{
         const q=engData.monthly[m]||0;
-        return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-          <span style="font-size:9px;color:var(--text3)">${q||''}</span>
-          <div style="width:100%;background:${q?'var(--accent)':'var(--border)'};opacity:${q?.85:.3};height:${Math.max(3,Math.round(q/globalMax*36))}px;border-radius:2px"></div>
+        const beforeStart=i<startIdx;
+        return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px" title="${beforeStart?(currentLang==='ko'?'참여 시작 전':'Before joining'):''}">
+          <span style="font-size:9px;color:var(--text3)">${beforeStart?'—':(q||'')}</span>
+          <div style="width:100%;background:${beforeStart?'repeating-linear-gradient(45deg,var(--border),var(--border) 2px,transparent 2px,transparent 4px)':(q?'var(--accent)':'var(--border)')};opacity:${beforeStart?0.5:(q?.85:.3)};height:${beforeStart?10:Math.max(3,Math.round(q/globalMax*36))}px;border-radius:2px"></div>
           <span style="font-size:9px;color:var(--text3)">${monthLabels[m]}</span>
         </div>`;
       }).join('')}
     </div>
-    <div style="font-size:11px;color:var(--text2);margin-top:4px">${currentLang==='ko'?'총':'Total'} ${engData.total}${currentLang==='ko'?'개':'pcs'} · ${engData.months}${t('month_unit')} ${currentLang==='ko'?'활동':'active'}</div>`
+    <div style="font-size:11px;color:var(--text2);margin-top:4px">${currentLang==='ko'?'총':'Total'} ${engData.total}${currentLang==='ko'?'개':'pcs'} · ${engData.months}${t('month_unit')} ${currentLang==='ko'?'활동':'active'}${startIdx>0?` · ${currentLang==='ko'?`참여 시작: ${monthLabels[startMonth]}`:`Joined: ${monthLabels[startMonth]}`}`:''}</div>`
     :`<div style="font-size:12px;color:var(--text3);padding:6px 0">${t('eng_no_history')}</div>`;
 
   const capableSection=producer&&producer.capable.length
@@ -2182,21 +2226,19 @@ function parseEngagementExcel(wb,resultEl){
     const rawCount=Object.keys(raw).length;
     if(!rawCount){resultEl.innerHTML='<div class="upload-result-err">❌ 참여 실적이 있는 HMP를 찾지 못했습니다.</div>';return;}
 
-    // 데이터가 존재하는 전체 개월 수 (참여도 계산 분모)
+    // 데이터가 존재하는 전체 개월 수 (참고용 — 실제 참여도 점수는 기수별 참여 시작월을 반영해 조회 시점에 동적으로 계산됨)
     const monthsSeen=new Set();
     Object.values(raw).forEach(d=>Object.keys(d.monthly).forEach(m=>monthsSeen.add(m)));
     const totalMonthsSoFar=monthsSeen.size||1;
-    const maxTotal=Math.max(...Object.values(raw).map(d=>d.total),1);
 
-    // 이름 1:1 매칭 후 최종 ENGAGEMENT_DATA 구성
+    // 이름 1:1 매칭 후 최종 ENGAGEMENT_DATA 구성 (total/months/monthly만 저장 — 참여도 점수는 getEngagementScore()에서 매번 계산)
     const nameMap=matchEngagementNames(Object.keys(raw));
     const unmatched=Object.keys(raw).filter(n=>!nameMap[n]);
     const result={};
     Object.entries(raw).forEach(([rawName,d])=>{
       const key=nameMap[rawName]||rawName;
       const monthsCount=Object.keys(d.monthly).length;
-      const engagement=Math.round((0.7*(d.total/maxTotal)+0.3*(monthsCount/totalMonthsSoFar))*10000)/10000;
-      result[key]={total:d.total,months:monthsCount,monthly:d.monthly,engagement};
+      result[key]={total:d.total,months:monthsCount,monthly:d.monthly};
     });
 
     ENGAGEMENT_DATA=result;
