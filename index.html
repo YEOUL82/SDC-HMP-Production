@@ -222,6 +222,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
           <option value="0.7" data-i18n="qc_decay_soft">약하게 (최신 월 70%, 이전 월 49%, 34%...)</option>
         </select>
       </div>
+      <div class="fg">
+        <label data-i18n="engagement_value_weight_label">참여도 산정 방식</label>
+        <select id="engagement-value-weight" onchange="saveSettings()">
+          <option value="0" data-i18n="eng_value_0">순수 참여 여부만</option>
+          <option value="0.2" data-i18n="eng_value_20">참여 여부 80% + 생산가치 20%</option>
+          <option value="0.3" selected data-i18n="eng_value_30">참여 여부 70% + 생산가치 30% (기본)</option>
+        </select>
+      </div>
     </div>
     <div id="qc-setting-desc" style="font-size:12px;color:var(--text2);margin-top:4px"></div>
   </div>
@@ -757,6 +765,9 @@ const I18N={
     qc_history_no_data:'QC 이력 없음. 데이터 업데이트에서 엑셀 파일을 업로드하세요.',
     default_label:'기본',
     engagement_weight_label:'참여도 반영 강도',
+    engagement_decay_label:'참여도 최신월 가중치 감소율',
+    engagement_value_weight_label:'참여도 산정 방식',
+    eng_value_0:'순수 참여 여부만', eng_value_20:'참여 여부 80% + 생산가치 20%', eng_value_30:'참여 여부 70% + 생산가치 30% (기본)',
     eng_none:'반영 안 함',eng_soft:'약하게 (±15%)',eng_medium:'중간 (±30%)',eng_strong:'강하게 (±50%)',
     tab_engagement:'📈 참여 현황',
     eng_by_hmp_title:'📈 HMP별 참여 현황', eng_period_label:'(2026년 1월~6월 기준)',
@@ -871,6 +882,9 @@ const I18N={
     qc_history_no_data:'No QC history. Upload an Excel file under Data Management.',
     default_label:'Default',
     engagement_weight_label:'Engagement Weight',
+    engagement_decay_label:'Engagement Recency Decay',
+    engagement_value_weight_label:'Engagement Scoring Method',
+    eng_value_0:'Pure attendance', eng_value_20:'Attendance 80% + Production value 20%', eng_value_30:'Attendance 70% + Production value 30% (default)',
     eng_none:'None',eng_soft:'Soft (±15%)',eng_medium:'Medium (±30%)',eng_strong:'Strong (±50%)',
     tab_engagement:'📈 Engagement',
     eng_by_hmp_title:'📈 Engagement by HMP', eng_period_label:'(Jan–Jun 2026)',
@@ -933,7 +947,7 @@ function toggleLang(){
 }
 
 let capableTags=[],saveTimer=null;
-let settings={qcWeightMode:'medium',qcUnknownMode:'low',qcDecay:0.8,engagementWeight:'medium',gradeQcRatio:0.7,engagementDecay:0.8};
+let settings={qcWeightMode:'medium',qcUnknownMode:'low',qcDecay:0.8,engagementWeight:'medium',gradeQcRatio:0.7,engagementDecay:0.8,engagementValueWeight:0.3};
 
 // ── QC 누적 가중평균 계산 ──
 // QC_HISTORY: [{sheet, label, uploadedAt, data}, ...] 최신순
@@ -1058,9 +1072,10 @@ function getEngagementLatestMonth(){
 }
 
 // QC와 동일한 원리의 "최근 가중평균" — 최신 기간=가중치 1, 그 이전=decay, 그 이전=decay^2 ...
-// 참여 가능 기간(본인이 처음 기록된 달~전체 최신월) 전체를 분모로 삼아, 활동이 뜸해지면 자연히 점수가 낮아지고
-// 반대로 오래 꾸준히 참여한 사람은 최근 실적이 같다면 신규자와 동일한 점수를 받음 (재직 기간 자체가 유·불리하게 작용하지 않음)
-function computeEngagementRawScore(producerName){
+// 참여 가능 기간(본인이 처음 기록된 달~전체 최신월) 전체를 분모로 삼아, 활동이 뜸해지면 자연히 값이 낮아지고
+// 반대로 오래 꾸준히 참여한 사람은 최근 실적이 같다면 신규자와 동일한 값을 받음 (재직 기간 자체가 유·불리하게 작용하지 않음)
+// valueFn: 그 달의 원본값(monthly[pk])을 받아 계산에 쓸 값으로 변환 (예: 그대로 쓰면 생산가치, 0/1로 바꾸면 참여 여부)
+function computeEngagementWeightedAvg(producerName,valueFn){
   const d=ENGAGEMENT_DATA[producerName];
   if(!d) return null;
   const producer=PRODUCERS.find(p=>p.name===producerName);
@@ -1075,24 +1090,43 @@ function computeEngagementRawScore(producerName){
     const pk=indexToPeriodKey(idx);
     const i=latestIdx-idx; // 최신 기간=0, 과거로 갈수록 커짐
     const w=Math.pow(decay,i);
-    const qty=(d.monthly&&d.monthly[pk])||0;
-    numerator+=w*qty;
+    const raw=(d.monthly&&d.monthly[pk])||0;
+    numerator+=w*valueFn(raw);
     denominator+=w;
   }
   return denominator>0?numerator/denominator:0;
 }
 
-function getEngagementMaxRawScore(){
-  const scores=Object.keys(ENGAGEMENT_DATA).map(n=>computeEngagementRawScore(n)).filter(v=>v!==null);
+// 참여 여부(0~1) 기준 — 그 달에 생산 실적이 있었는지(1) 없었는지(0)만 보고, 최근일수록 가중치를 크게 둔 평균.
+// 이 값 자체가 이미 0~1 사이 "참여율"이라 별도 정규화가 필요 없음.
+function computeEngagementConsistencyScore(producerName){
+  return computeEngagementWeightedAvg(producerName,v=>v>0?1:0);
+}
+
+// 생산가치 기준(선택 반영, 기본 0%) — QC 품목별 제출수량×노동비로 계산된 월별 가치의 가중평균.
+// QC 결과가 이미 생산계획 배분(=생산가치)에 영향을 주고 있어서, 참여도에도 가치를 그대로 반영하면
+// 신규/미숙련 생산자가 이중으로 불리해질 수 있음 — 그래서 기본은 0%이며 필요 시에만 소폭 반영.
+function computeEngagementValueScore(producerName){
+  return computeEngagementWeightedAvg(producerName,v=>v);
+}
+
+function getEngagementMaxValueScore(){
+  const scores=Object.keys(ENGAGEMENT_DATA).map(n=>computeEngagementValueScore(n)).filter(v=>v!==null);
   return Math.max(...scores,1e-9);
 }
 
-// 참여도(0~1) = 본인의 최근 가중평균 생산량 ÷ 전체 HMP 중 최고 가중평균 생산량
+// 참여도 = (1-생산가치반영비율)×참여 여부(꾸준함) + 생산가치반영비율×생산가치(정규화)
+// 기본값(생산가치반영비율=0)에서는 순수하게 "매달 꾸준히 참여했는가"만으로 결정됨
 function getEngagementScore(producerName){
-  const raw=computeEngagementRawScore(producerName);
-  if(raw===null) return null;
-  const max=getEngagementMaxRawScore();
-  return Math.round((raw/max)*10000)/10000;
+  const consistency=computeEngagementConsistencyScore(producerName);
+  if(consistency===null) return null;
+  const valueWeight=settings.engagementValueWeight!=null?settings.engagementValueWeight:0;
+  if(valueWeight<=0) return Math.round(consistency*10000)/10000;
+  const valueRaw=computeEngagementValueScore(producerName);
+  const maxValue=getEngagementMaxValueScore();
+  const valueScore=maxValue>0?valueRaw/maxValue:0;
+  const score=(1-valueWeight)*consistency+valueWeight*valueScore;
+  return Math.round(score*10000)/10000;
 }
 
 function calcEngagementWeight(producerName){
@@ -1173,11 +1207,60 @@ function loadData(){
       window.QC_HISTORY=JSON.parse(JSON.stringify(DEFAULT_QC_HISTORY));
     }
   }catch(e){window.QC_HISTORY=JSON.parse(JSON.stringify(DEFAULT_QC_HISTORY));}
+  migrateQcHistoryFormat();
   // 가중평균 QC 계산
   computeWeightedQC();
   // 참여도 데이터 로드 (엑셀 업로드로 덮어쓴 값이 있으면 그것을 사용)
   try{const e=localStorage.getItem('sdc_engagement_data');ENGAGEMENT_DATA=e?JSON.parse(e):JSON.parse(JSON.stringify(DEFAULT_ENGAGEMENT_DATA));}
   catch(e){ENGAGEMENT_DATA=JSON.parse(JSON.stringify(DEFAULT_ENGAGEMENT_DATA));}
+  migrateEngagementDataFormat();
+}
+
+// 예전 버전(연도 구분 도입 이전)에 브라우저에 저장된 참여도 데이터는 월 키가 "January" 같은 이름만 있고
+// 연도가 없음. 새 채점 로직은 "YYYY-MM" 형식을 요구하므로, 이 형식이 아닌 키를 만나면 2026년 기준으로
+// 변환한다 (이 시스템이 지금까지 다뤄온 데이터가 전부 2026년 것이었기 때문). 이 마이그레이션이 없으면
+// 예전 브라우저에 저장된 데이터를 가진 사람은 참여도가 0으로 표시되는 문제가 발생한다.
+function migrateEngagementDataFormat(){
+  const MONTH_NUM={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
+  let migrated=false;
+  Object.keys(ENGAGEMENT_DATA).forEach(name=>{
+    const d=ENGAGEMENT_DATA[name];
+    const monthly=d.monthly||{};
+    const newMonthly={};
+    let changed=false;
+    Object.entries(monthly).forEach(([k,v])=>{
+      if(/^\d{4}-\d{2}$/.test(k)){newMonthly[k]=v;return;}
+      const num=MONTH_NUM[k.toLowerCase()];
+      if(num){newMonthly[`2026-${String(num).padStart(2,'0')}`]=v;changed=true;}
+      // 인식할 수 없는 키는 버림 (안전하게 무시)
+    });
+    if(changed){
+      d.monthly=newMonthly;
+      const vals=Object.values(newMonthly);
+      d.total=vals.reduce((s,v)=>s+v,0);
+      d.months=vals.length;
+      migrated=true;
+    }
+  });
+  if(migrated) localStorage.setItem('sdc_engagement_data',JSON.stringify(ENGAGEMENT_DATA));
+}
+
+// 예전 버전(연도 구분 도입 이전)에 저장된 QC 이력은 periodKey/year 필드가 없을 수 있음.
+// 이 경우 기존 label/sheet로부터 최대한 유추해 채워 넣어, 같은 달을 새로 업로드했을 때 중복되지 않게 함.
+function migrateQcHistoryFormat(){
+  const MONTH_NUM={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
+  let migrated=false;
+  (window.QC_HISTORY||[]).forEach(h=>{
+    if(h.periodKey) return;
+    const yearMatch=(h.label||'').match(/(\d{4})/);
+    const year=yearMatch?parseInt(yearMatch[1]):2026;
+    const monthNum=MONTH_NUM[(h.sheet||'').toLowerCase()]||null;
+    h.year=year;
+    h.periodKey=monthNum?`${year}-${String(monthNum).padStart(2,'0')}`:`${year}-${h.sheet}`;
+    if(!/\d{4}/.test(h.label||'')) h.label=monthNum?`${year}년 ${monthNum}월`:`${year}년 ${h.sheet}`;
+    migrated=true;
+  });
+  if(migrated) localStorage.setItem('sdc_qc_history',JSON.stringify(window.QC_HISTORY));
 }
 function saveData(){
   localStorage.setItem('sdc_hmp_data',JSON.stringify({producers:PRODUCERS,laborFee:LABOR_FEE,lastModified:new Date().toISOString()}));
@@ -1201,6 +1284,7 @@ function saveSettings(){
   settings.qcDecay=parseFloat(document.getElementById('qc-decay').value)||0.8;
   const ewEl=document.getElementById('engagement-weight');if(ewEl)settings.engagementWeight=ewEl.value;
   const edEl=document.getElementById('engagement-decay');if(edEl)settings.engagementDecay=parseFloat(edEl.value)||0.8;
+  const evwEl=document.getElementById('engagement-value-weight');if(evwEl)settings.engagementValueWeight=parseFloat(evwEl.value)||0;
   localStorage.setItem('sdc_settings',JSON.stringify(settings));
   computeWeightedQC();
   updateQcSettingDesc();
@@ -1801,7 +1885,7 @@ function renderEngagementDistChart(){
 }
 
 // ── 등급 현황 ──
-const GRADE_THRESHOLDS=[{grade:'S',min:85,color:'#6A1B9A'},{grade:'A',min:70,color:'#2E7D32'},{grade:'B',min:45,color:'#1565C0'},{grade:'C',min:20,color:'#F57F17'},{grade:'D',min:0,color:'#C62828'}];
+const GRADE_THRESHOLDS=[{grade:'S',min:95,color:'#6A1B9A'},{grade:'A',min:90,color:'#2E7D32'},{grade:'B',min:85,color:'#1565C0'},{grade:'C',min:70,color:'#F57F17'},{grade:'D',min:0,color:'#C62828'}];
 let activeGradeBatch=null;
 let expandedGradeNames=new Set();
 
@@ -2550,6 +2634,7 @@ document.getElementById('qc-decay').value=settings.qcDecay||0.8;
 const ewEl2=document.getElementById('engagement-weight');if(ewEl2)ewEl2.value=settings.engagementWeight||'soft';
 const grEl2=document.getElementById('grade-ratio');if(grEl2)grEl2.value=String(settings.gradeQcRatio!=null?settings.gradeQcRatio:0.6);
 const edEl2=document.getElementById('engagement-decay');if(edEl2)edEl2.value=settings.engagementDecay!=null?settings.engagementDecay:0.8;
+const evwEl2=document.getElementById('engagement-value-weight');if(evwEl2)evwEl2.value=String(settings.engagementValueWeight!=null?settings.engagementValueWeight:0);
 // 연도 입력란 기본값 = 오늘 날짜 기준 연도
 const curYear=new Date().getFullYear();
 const qcYearEl=document.getElementById('qc-year');if(qcYearEl)qcYearEl.value=curYear;
