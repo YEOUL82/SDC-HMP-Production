@@ -1042,9 +1042,13 @@ function indexToPeriodKey(idx){
   return `${y}-${String(m).padStart(2,'0')}`;
 }
 // 전체 ENGAGEMENT_DATA에서 존재하는 모든 기간키 정렬 목록
+// "YYYY-MM" 형식이 아닌 잘못된 키(예: 월 이름 오타로 생긴 "2026-Aug")는 걸러낸다 —
+// 그렇지 않으면 이런 값 하나가 전체 참여도 계산(가장 최근 기간 판단)을 통째로 깨뜨릴 수 있다.
 function allEngagementPeriods(){
   const set=new Set();
-  Object.values(ENGAGEMENT_DATA).forEach(d=>Object.keys(d.monthly||{}).forEach(pk=>set.add(pk)));
+  Object.values(ENGAGEMENT_DATA).forEach(d=>Object.keys(d.monthly||{}).forEach(pk=>{
+    if(/^\d{4}-\d{2}$/.test(pk)) set.add(pk);
+  }));
   return[...set].sort((a,b)=>periodKeyToIndex(a)-periodKeyToIndex(b));
 }
 // 선정 시기가 늦어 특정 기간 이전에 참여할 수 없었던 기수는 시작 기간을 "YYYY-MM"으로 지정 (기수 단위 예외).
@@ -1055,7 +1059,7 @@ const BATCH_ENGAGEMENT_START={5:'2026-02',6:'2026-04'};
 
 function engagementStartPeriod(producerName,batch){
   const d=ENGAGEMENT_DATA[producerName];
-  const ownPeriods=d?Object.keys(d.monthly||{}).sort((a,b)=>periodKeyToIndex(a)-periodKeyToIndex(b)):[];
+  const ownPeriods=d?Object.keys(d.monthly||{}).filter(pk=>/^\d{4}-\d{2}$/.test(pk)).sort((a,b)=>periodKeyToIndex(a)-periodKeyToIndex(b)):[];
   const ownEarliest=ownPeriods.length?ownPeriods[0]:null;
   const batchStart=BATCH_ENGAGEMENT_START[batch]||null;
   if(batchStart&&ownEarliest) return periodKeyToIndex(batchStart)>=periodKeyToIndex(ownEarliest)?batchStart:ownEarliest;
@@ -1221,7 +1225,6 @@ function loadData(){
 // 변환한다 (이 시스템이 지금까지 다뤄온 데이터가 전부 2026년 것이었기 때문). 이 마이그레이션이 없으면
 // 예전 브라우저에 저장된 데이터를 가진 사람은 참여도가 0으로 표시되는 문제가 발생한다.
 function migrateEngagementDataFormat(){
-  const MONTH_NUM={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
   let migrated=false;
   Object.keys(ENGAGEMENT_DATA).forEach(name=>{
     const d=ENGAGEMENT_DATA[name];
@@ -1230,7 +1233,7 @@ function migrateEngagementDataFormat(){
     let changed=false;
     Object.entries(monthly).forEach(([k,v])=>{
       if(/^\d{4}-\d{2}$/.test(k)){newMonthly[k]=v;return;}
-      const num=MONTH_NUM[k.toLowerCase()];
+      const num=MONTH_NUM_MAP[k.toLowerCase()];
       if(num){newMonthly[`2026-${String(num).padStart(2,'0')}`]=v;changed=true;}
       // 인식할 수 없는 키는 버림 (안전하게 무시)
     });
@@ -1248,13 +1251,12 @@ function migrateEngagementDataFormat(){
 // 예전 버전(연도 구분 도입 이전)에 저장된 QC 이력은 periodKey/year 필드가 없을 수 있음.
 // 이 경우 기존 label/sheet로부터 최대한 유추해 채워 넣어, 같은 달을 새로 업로드했을 때 중복되지 않게 함.
 function migrateQcHistoryFormat(){
-  const MONTH_NUM={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
   let migrated=false;
   (window.QC_HISTORY||[]).forEach(h=>{
     if(h.periodKey) return;
     const yearMatch=(h.label||'').match(/(\d{4})/);
     const year=yearMatch?parseInt(yearMatch[1]):2026;
-    const monthNum=MONTH_NUM[(h.sheet||'').toLowerCase()]||null;
+    const monthNum=MONTH_NUM_MAP[(h.sheet||'').toLowerCase()]||null;
     h.year=year;
     h.periodKey=monthNum?`${year}-${String(monthNum).padStart(2,'0')}`:`${year}-${h.sheet}`;
     if(!/\d{4}/.test(h.label||'')) h.label=monthNum?`${year}년 ${monthNum}월`:`${year}년 ${h.sheet}`;
@@ -2324,7 +2326,12 @@ function parseLaborExcel(wb,resultEl){
 
 // ── QC 파일 파싱 ──
 // 구조: Y/M/Product name/Submitted Qty/QC pass QTY/HMP/NOTE
-const MONTH_NUM_MAP={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
+// 전체 영문명(예: "August")과 3글자 축약형(예: "Aug")을 모두 인식
+const MONTH_NUM_MAP={
+  january:1,jan:1, february:2,feb:2, march:3,mar:3, april:4,apr:4, may:5,
+  june:6,jun:6, july:7,jul:7, august:8,aug:8, september:9,sep:9,sept:9,
+  october:10,oct:10, november:11,nov:11, december:12,dec:12
+};
 
 // 제품명 표기 차이(공백·괄호 등)를 무시하고 노동비 단가를 찾기 위한 정규화 키
 function normalizeProductKey(s){
@@ -2405,10 +2412,21 @@ function parseQCExcel(wb,resultEl){
   const count=Object.keys(hmpStats).length;
   if(!count){resultEl.innerHTML='<div class="upload-result-err">❌ 파싱된 QC 데이터가 없습니다.</div>';return;}
 
-  // 연도+월로 고유 시기(periodKey) 구성 — 같은 연도·같은 월이면 교체, 다른 연도면 별도 이력으로 누적
+  // 시트명에서 월을 인식하지 못하면(예: "August"가 아니라 "Aug" 등으로 잘못 입력) 업로드를 중단한다.
+  // 인식 안 된 월로 그대로 진행하면 잘못된 형식의 기간키가 만들어져 전체 참여도 계산이 깨질 수 있다.
   const monthNum=MONTH_NUM_MAP[wsName.toLowerCase()]||null;
-  const periodKey=monthNum?`${yearInput}-${String(monthNum).padStart(2,'0')}`:`${yearInput}-${wsName}`;
-  const label=monthNum?`${yearInput}년 ${monthNum}월`:`${yearInput}년 ${wsName}`;
+  if(!monthNum){
+    resultEl.innerHTML=`<div class="upload-result-err">❌ "${wsName}"을(를) 월 이름으로 인식하지 못했습니다. 시트명을 January~December 중 하나(예: "August")로 정확히 입력해주세요. 그렇지 않으면 참여도 계산 전체가 깨질 수 있어 업로드를 중단했습니다.</div>`;
+    return;
+  }
+  if(!Number.isInteger(yearInput)||yearInput<2000||yearInput>2100){
+    resultEl.innerHTML=`<div class="upload-result-err">❌ 연도 값(${document.getElementById('qc-year')?.value})이 올바르지 않습니다. 2000~2100 사이의 4자리 연도를 입력해주세요.</div>`;
+    return;
+  }
+
+  // 연도+월로 고유 시기(periodKey) 구성 — 같은 연도·같은 월이면 교체, 다른 연도면 별도 이력으로 누적
+  const periodKey=`${yearInput}-${String(monthNum).padStart(2,'0')}`;
+  const label=`${yearInput}년 ${monthNum}월`;
 
   const history=window.QC_HISTORY||[];
   const existIdx=history.findIndex(h=>(h.periodKey||`${h.year||''}-${h.sheet}`)===periodKey);
@@ -2476,6 +2494,10 @@ function matchEngagementNames(rawNames){
 function parseEngagementExcel(wb,resultEl){
   try{
     const yearInput=parseInt(document.getElementById('engagement-year')?.value)||new Date().getFullYear();
+    if(!Number.isInteger(yearInput)||yearInput<2000||yearInput>2100){
+      resultEl.innerHTML=`<div class="upload-result-err">❌ 연도 값(${document.getElementById('engagement-year')?.value})이 올바르지 않습니다. 2000~2100 사이의 4자리 연도를 입력해주세요.</div>`;
+      return;
+    }
     const wsName=wb.SheetNames[0];
     const ws=wb.Sheets[wsName];
     const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
