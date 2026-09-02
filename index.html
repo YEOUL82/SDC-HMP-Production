@@ -1224,6 +1224,9 @@ function loadData(){
 // 연도가 없음. 새 채점 로직은 "YYYY-MM" 형식을 요구하므로, 이 형식이 아닌 키를 만나면 2026년 기준으로
 // 변환한다 (이 시스템이 지금까지 다뤄온 데이터가 전부 2026년 것이었기 때문). 이 마이그레이션이 없으면
 // 예전 브라우저에 저장된 데이터를 가진 사람은 참여도가 0으로 표시되는 문제가 발생한다.
+// 예전 형식(월 이름만 있는 키)이나, 월 인식 실패로 생긴 "YYYY-Aug" 같은 잘못된 형식의 키를
+// "YYYY-MM"으로 복구한다. 이 복구가 없으면, 잘못된 키가 하나 섞여 있을 때 "○개월·누적" 요약 수치에는
+// 포함되면서 그래프(참여 현황 막대, 롤링 윈도우)에서는 제외되어 서로 다른 숫자를 보여주는 문제가 생긴다.
 function migrateEngagementDataFormat(){
   let migrated=false;
   Object.keys(ENGAGEMENT_DATA).forEach(name=>{
@@ -1233,9 +1236,16 @@ function migrateEngagementDataFormat(){
     let changed=false;
     Object.entries(monthly).forEach(([k,v])=>{
       if(/^\d{4}-\d{2}$/.test(k)){newMonthly[k]=v;return;}
+      // "YYYY-월이름/월약자" 형태 (예: "2026-Aug", "2026-August") 복구 시도
+      const yearMonthMatch=k.match(/^(\d{4})-([A-Za-z]+)$/);
+      if(yearMonthMatch){
+        const num=MONTH_NUM_MAP[yearMonthMatch[2].toLowerCase()];
+        if(num){newMonthly[`${yearMonthMatch[1]}-${String(num).padStart(2,'0')}`]=v;changed=true;return;}
+      }
+      // 순수 월 이름만 있는 예전 형식 (예: "January") — 2026년 기준으로 복구
       const num=MONTH_NUM_MAP[k.toLowerCase()];
-      if(num){newMonthly[`2026-${String(num).padStart(2,'0')}`]=v;changed=true;}
-      // 인식할 수 없는 키는 버림 (안전하게 무시)
+      if(num){newMonthly[`2026-${String(num).padStart(2,'0')}`]=v;changed=true;return;}
+      // 그래도 인식할 수 없는 키는 버림 (안전하게 무시)
     });
     if(changed){
       d.monthly=newMonthly;
@@ -1248,18 +1258,19 @@ function migrateEngagementDataFormat(){
   if(migrated) localStorage.setItem('sdc_engagement_data',JSON.stringify(ENGAGEMENT_DATA));
 }
 
-// 예전 버전(연도 구분 도입 이전)에 저장된 QC 이력은 periodKey/year 필드가 없을 수 있음.
-// 이 경우 기존 label/sheet로부터 최대한 유추해 채워 넣어, 같은 달을 새로 업로드했을 때 중복되지 않게 함.
+// 예전 버전(연도 구분 도입 이전)에 저장된 QC 이력은 periodKey/year 필드가 없거나,
+// 월 인식 실패로 "2026-Aug"처럼 잘못된 형식의 periodKey를 갖고 있을 수 있음. 이를 복구한다.
 function migrateQcHistoryFormat(){
   let migrated=false;
   (window.QC_HISTORY||[]).forEach(h=>{
-    if(h.periodKey) return;
-    const yearMatch=(h.label||'').match(/(\d{4})/);
+    if(h.periodKey&&/^\d{4}-\d{2}$/.test(h.periodKey)) return; // 이미 올바른 형식
+    const yearMatch=(h.periodKey||h.label||'').match(/(\d{4})/);
     const year=yearMatch?parseInt(yearMatch[1]):2026;
     const monthNum=MONTH_NUM_MAP[(h.sheet||'').toLowerCase()]||null;
     h.year=year;
     h.periodKey=monthNum?`${year}-${String(monthNum).padStart(2,'0')}`:`${year}-${h.sheet}`;
-    if(!/\d{4}/.test(h.label||'')) h.label=monthNum?`${year}년 ${monthNum}월`:`${year}년 ${h.sheet}`;
+    if(monthNum) h.label=`${year}년 ${monthNum}월`;
+    else if(!/\d{4}/.test(h.label||'')) h.label=`${year}년 ${h.sheet}`;
     migrated=true;
   });
   if(migrated) localStorage.setItem('sdc_qc_history',JSON.stringify(window.QC_HISTORY));
