@@ -226,8 +226,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
         <label data-i18n="engagement_value_weight_label">참여도 산정 방식</label>
         <select id="engagement-value-weight" onchange="saveSettings()">
           <option value="0" data-i18n="eng_value_0">순수 참여 여부만</option>
-          <option value="0.2" data-i18n="eng_value_20">참여 여부 80% + 생산가치 20%</option>
-          <option value="0.3" selected data-i18n="eng_value_30">참여 여부 70% + 생산가치 30% (기본)</option>
+          <option value="0.15" data-i18n="eng_value_15">참여 여부 85% + 생산가치 15%</option>
+          <option value="0.2" selected data-i18n="eng_value_20">참여 여부 80% + 생산가치 20% (기본)</option>
+          <option value="0.3" data-i18n="eng_value_30">참여 여부 70% + 생산가치 30%</option>
         </select>
       </div>
     </div>
@@ -767,7 +768,7 @@ const I18N={
     engagement_weight_label:'참여도 반영 강도',
     engagement_decay_label:'참여도 최신월 가중치 감소율',
     engagement_value_weight_label:'참여도 산정 방식',
-    eng_value_0:'순수 참여 여부만', eng_value_20:'참여 여부 80% + 생산가치 20%', eng_value_30:'참여 여부 70% + 생산가치 30% (기본)',
+    eng_value_0:'순수 참여 여부만', eng_value_15:'참여 여부 85% + 생산가치 15%', eng_value_20:'참여 여부 80% + 생산가치 20% (기본)', eng_value_30:'참여 여부 70% + 생산가치 30%',
     eng_none:'반영 안 함',eng_soft:'약하게 (±15%)',eng_medium:'중간 (±30%)',eng_strong:'강하게 (±50%)',
     tab_engagement:'📈 참여 현황',
     eng_by_hmp_title:'📈 HMP별 참여 현황', eng_period_label:'(2026년 1월~6월 기준)',
@@ -884,7 +885,7 @@ const I18N={
     engagement_weight_label:'Engagement Weight',
     engagement_decay_label:'Engagement Recency Decay',
     engagement_value_weight_label:'Engagement Scoring Method',
-    eng_value_0:'Pure attendance', eng_value_20:'Attendance 80% + Production value 20%', eng_value_30:'Attendance 70% + Production value 30% (default)',
+    eng_value_0:'Pure attendance', eng_value_15:'Attendance 85% + Production value 15%', eng_value_20:'Attendance 80% + Production value 20% (default)', eng_value_30:'Attendance 70% + Production value 30%',
     eng_none:'None',eng_soft:'Soft (±15%)',eng_medium:'Medium (±30%)',eng_strong:'Strong (±50%)',
     tab_engagement:'📈 Engagement',
     eng_by_hmp_title:'📈 Engagement by HMP', eng_period_label:'(Jan–Jun 2026)',
@@ -947,7 +948,7 @@ function toggleLang(){
 }
 
 let capableTags=[],saveTimer=null;
-let settings={"qcWeightMode":"medium","qcUnknownMode":"low","qcDecay":0.8,"engagementWeight":"medium","gradeQcRatio":0.7,"engagementDecay":0.8,"engagementValueWeight":0.3};
+let settings={"qcWeightMode":"medium","qcUnknownMode":"low","qcDecay":0.8,"engagementWeight":"medium","gradeQcRatio":0.7,"engagementDecay":0.8,"engagementValueWeight":0.2};
 
 // ── QC 누적 가중평균 계산 ──
 // QC_HISTORY: [{sheet, label, uploadedAt, data}, ...] 최신순
@@ -960,17 +961,33 @@ function computeWeightedQC(){
     if(a.periodKey&&b.periodKey) return b.periodKey.localeCompare(a.periodKey);
     return new Date(b.uploadedAt)-new Date(a.uploadedAt);
   });
+
+  // 달마다 이름 표기(순서 등)가 다르게 입력되어도 같은 사람으로 합쳐지도록 매칭한다.
+  // 주의: 매칭은 "월 단위"로 따로 수행해야 한다 — 전체 이력을 한꺼번에 매칭하면, 같은 사람이 다른 달에
+  // 다른 표기로 나타난 것을 "그 달 안에서 경쟁하는 서로 다른 사람"으로 착각해 하나만 매칭되고
+  // 나머지 달은 매칭에서 탈락해버린다. (예: "Akello Vicky Joan"(5월)과 "Akello Joan Vicky"(8월)는
+  // 토큰이 완전히 같아서 전체를 한번에 매칭하면 둘 중 하나만 선택되고 나머지가 미매칭으로 남는다.)
+  const monthNameMaps=sorted.map(month=>matchEngagementNames(Object.keys(month.data||{})));
+
   // HMP별 가중합 계산
-  const weightedMap={}; // {qcName: {weightedRate, totalWeight, months:[{label,rate,weight}]}}
+  const weightedMap={}; // {canonicalName: {weightedRate, totalWeight, months:[{label,rate,weight}], batch}}
   sorted.forEach((month,idx)=>{
     const w=Math.pow(decay,idx); // 최신=1, 이전=decay, 그 이전=decay^2, ...
-    Object.entries(month.data||{}).forEach(([name,d])=>{
-      if(!weightedMap[name]) weightedMap[name]={weightedSum:0,totalWeight:0,months:[]};
+    const nameMap=monthNameMaps[idx];
+    Object.entries(month.data||{}).forEach(([rawName,d])=>{
+      const key=nameMap[rawName]||rawName;
+      if(!weightedMap[key]) weightedMap[key]={weightedSum:0,totalWeight:0,months:[],batch:null};
       const rate=d.rate;
       if(rate!==null&&rate!==undefined){
-        weightedMap[name].weightedSum+=rate*w;
-        weightedMap[name].totalWeight+=w;
-        weightedMap[name].months.push({label:month.label||month.sheet,rate,weight:Math.round(w*100)});
+        weightedMap[key].weightedSum+=rate*w;
+        weightedMap[key].totalWeight+=w;
+        weightedMap[key].months.push({label:month.label||month.sheet,rate,weight:Math.round(w*100)});
+      }
+      // 배치는 HMP 명단(정식 등록 정보)을 최우선으로 사용 — 특정 월 원본 파일에 배치 오기가 있어도
+      // 전체/누적 화면에는 정확한 배치가 표시되도록 함. 명단에 없는(매칭 안 된) 이름만 원본 파일의 배치를 사용.
+      if(weightedMap[key].batch==null){
+        const producer=PRODUCERS.find(p=>p.name===key);
+        weightedMap[key].batch=producer?producer.batch:(d.batch??null);
       }
     });
   });
@@ -980,7 +997,7 @@ function computeWeightedQC(){
     result[name]={
       rate:d.totalWeight>0?Math.round(d.weightedSum/d.totalWeight*10)/10:null,
       months:d.months,
-      batch:(history[0]?.data[name]?.batch)||(history.find(h=>h.data[name])?.data[name]?.batch)||null
+      batch:d.batch
     };
   });
   window.QC_WEIGHTED=result;
@@ -1014,6 +1031,9 @@ function buildQcNameMap(){
 
 // 가중평균 QC rate 반환 (PRODUCERS 이름으로)
 function getQcRate(producerName){
+  // QC_WEIGHTED는 이제 매칭된 사람은 HMP 명단의 정식 이름을 키로 사용하므로 직접 조회를 우선 시도
+  const direct=window.QC_WEIGHTED?.[producerName];
+  if(direct) return direct.rate??null;
   const map=buildQcNameMap();
   const qcEntry=Object.entries(map).find(([,v])=>v===producerName);
   if(!qcEntry) return null;
@@ -1022,6 +1042,8 @@ function getQcRate(producerName){
 
 // 월별 상세 이력 반환
 function getQcMonthDetail(producerName){
+  const direct=window.QC_WEIGHTED?.[producerName];
+  if(direct) return direct.months||[];
   const map=buildQcNameMap();
   const qcEntry=Object.entries(map).find(([,v])=>v===producerName);
   if(!qcEntry) return [];
